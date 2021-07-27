@@ -3,7 +3,7 @@
 #
 
 NAME                  = appweb
-VERSION               = 8.2.3
+VERSION               = 8.2.2
 
 OS                    = windows
 PA                    = $(PROCESSOR_ARCHITECTURE)
@@ -808,6 +808,7 @@ build\$(CONFIG)\obj\sqlite3.obj: \
 #
 #   testHandler.obj
 #
+DEPS_54 = $(DEPS_54) src\appweb.h
 
 build\$(CONFIG)\obj\testHandler.obj: \
     src\modules\testHandler.c $(DEPS_54)

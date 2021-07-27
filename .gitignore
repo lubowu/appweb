@@ -56,3 +56,4 @@ t.es
 .profile
 *.dmp
 src/server/web/1*.txt
+test/debug.conf

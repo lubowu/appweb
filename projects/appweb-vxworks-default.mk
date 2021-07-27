@@ -3,7 +3,7 @@
 #
 
 NAME                  := appweb
-VERSION               := 8.2.3
+VERSION               := 8.2.2
 PROFILE               ?= default
 ARCH                  ?= $(shell echo $(WIND_HOST_TYPE) | sed 's/-.*$(ME_ROOT_PREFIX)/')
 CPU                   ?= $(subst X86,PENTIUM,$(shell echo $(ARCH) | tr a-z A-Z))
@@ -665,6 +665,7 @@ $(BUILD)/obj/sqlite3.o: \
 #
 #   testHandler.o
 #
+DEPS_50 += src/appweb.h
 
 $(BUILD)/obj/testHandler.o: \
     src/modules/testHandler.c $(DEPS_50)
