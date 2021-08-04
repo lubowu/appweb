@@ -17,9 +17,8 @@ Me.load({
             generate: false,
         },
 
-        'test-prep': {
+        'test-files': {
             platforms: [ 'local' ],
-            depends: [ 'clean-test', 'build', 'prep-cgi', 'test-testScript', 'test-cgiProgram', 'test-fastProgram' ],
             generate: false,
             action: `
                 print('   [Create] test files')
@@ -29,8 +28,15 @@ Me.load({
                 run('utils/make-files 2050 web/100K.txt')
                 run('utils/make-files 10250 web/500K.txt')
                 run('utils/make-files 21000 web/1M.txt')
-                run('utils/make-files 1040000 web/50M.txt')
-                run('utils/make-files 4200000 web/200M.txt')
+                run('utils/make-files 210000 web/10M.txt')
+            `,
+        },
+
+        'test-prep': {
+            platforms: [ 'local' ],
+            depends: [ 'clean-test', 'build', 'prep-cgi', 'test-testScript', 'test-cgiProgram', 'test-fastProgram' ],
+            generate: false,
+            action: `
                 Path('.test-prepared').write('')
             `,
         },
@@ -176,6 +182,17 @@ Me.load({
                 rm('cgi-bin/testScript*')
                 rm('fast-bin/fast*')
                 rm('web/js')
+                Path('cache').makeDir()
+                Path('cache/.keep').write()
+                Path('app/cache').makeDir()
+                Path('app/cache/.keep').write()
+                Path('web/cgiProgram.cgi').remove()
+            `
+        },
+
+        'clobber-test': {
+            type: 'clean',
+            action: `
                 rm('web/1K.txt')
                 rm('web/10K.txt')
                 rm('web/25K.txt')
@@ -184,11 +201,6 @@ Me.load({
                 rm('web/1M.txt')
                 rm('web/50M.txt')
                 rm('web/200M.txt')
-                Path('cache').makeDir()
-                Path('cache/.keep').write()
-                Path('app/cache').makeDir()
-                Path('app/cache/.keep').write()
-                Path('web/cgiProgram.cgi').remove()
             `
         },
 
