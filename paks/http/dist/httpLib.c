@@ -1,5 +1,5 @@
 /*
- * Embedthis Http Library Source 9.0.1
+ * Embedthis Http Library Source 9.0.2
  */
 
 #include "http.h"
@@ -9817,9 +9817,14 @@ static ssize resizePacket(HttpQueue *q, ssize max, HttpPacket *packet)
 
 PUBLIC void httpFinalizeHttp2Stream(HttpStream *stream)
 {
+#if UNUSED
+    /*
+        Half closed stream must still receive certain packets (see h2spec)
+    */
     if (stream->h2State >= H2_CLOSED) {
         httpDestroyStream(stream);
     }
+#endif
 }
 
 
@@ -11471,7 +11476,7 @@ static int setState(HttpStream *stream, int event)
     int         state;
 
     net = stream->net;
-    if (event < 0 || event >= E2_MAX) {
+    if (event < 0 || event >= E2_MAX || stream->h2State < 0) {
         return H2_ERR;
     }
     state = StateMatrix[event][stream->h2State];
@@ -17118,7 +17123,8 @@ PUBLIC bool httpPumpOutput(HttpQueue *q)
     stream = q->stream;
     tx = stream->tx;
 
-    httpServiceNetQueues(q->net, HTTP_BLOCK);
+    //  Cannot use HTTP_BLOCK because httpConnect and others need to be able to call without yielding
+    httpServiceNetQueues(q->net, 0);
 
     if (tx->started && !stream->net->writeBlocked) {
         wq = stream->writeq;
@@ -26192,25 +26198,22 @@ static void incomingUploadService(HttpQueue *q)
     }
     stream = q->stream;
     rx = stream->rx;
+    done = 0;
 
-    for (packet = q->first; packet; packet = q->first) {
+    for (packet = q->first; packet && !done; packet = q->first) {
         if (packet->flags & HTTP_PACKET_END) {
-            if (up->contentState != HTTP_UPLOAD_CONTENT_END) {
-                httpError(stream, HTTP_CODE_BAD_REQUEST, "Client supplied insufficient upload data");
-            }
-            renameUploadedFiles(q->stream);
-            httpPutPacketToNext(q, packet);
             break;
         }
         content = packet->content;
         mark = httpGetPacketLength(packet);
 
-        for (done = 0; !done; ) {
+        while (!done) {
             switch (up->contentState) {
             case HTTP_UPLOAD_BOUNDARY:
             case HTTP_UPLOAD_CONTENT_HEADER:
                 if ((line = getNextUploadToken(content)) == 0) {
                     /* Incomplete line */
+                    done++;
                     break;
                 }
                 if (up->contentState == HTTP_UPLOAD_BOUNDARY) {
@@ -26252,6 +26255,15 @@ static void incomingUploadService(HttpQueue *q)
             httpGetPacket(q);
         } else if (packet != rx->headerPacket) {
             mprCompactBuf(content);
+        }
+    }
+
+    if (packet && packet->flags & HTTP_PACKET_END) {
+        if (up->contentState != HTTP_UPLOAD_CONTENT_END) {
+            httpError(stream, HTTP_CODE_BAD_REQUEST, "Client supplied insufficient upload data");
+        } else {
+            renameUploadedFiles(q->stream);
+            httpPutPacketToNext(q, packet);
         }
     }
 }
@@ -26552,6 +26564,7 @@ static int processUploadData(HttpQueue *q)
         }
         /*
             Can't see boundary to mark the end of the data. Return and get more data.
+            Really should return zero, but doesn't matter.
          */
         return -1;
     }

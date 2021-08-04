@@ -361,13 +361,6 @@
     </member>
     <member kind="define">
       <type>#define</type>
-      <name>MPR_DISPATCHER_ACTIVE</name>
-      <anchorfile>mpr_8h.html</anchorfile>
-      <anchor>a6ed9b0c468cf6344582c907e35dd7364</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="define">
-      <type>#define</type>
       <name>MPR_DISPATCHER_AUTO</name>
       <anchorfile>mpr_8h.html</anchorfile>
       <anchor>ab0f3013da15539678a4c591e5ec15298</anchor>

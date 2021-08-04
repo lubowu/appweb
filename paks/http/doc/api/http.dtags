@@ -1275,13 +1275,6 @@
       <arglist>)(struct HttpNet *net, int event)</arglist>
     </member>
     <member kind="function">
-      <type>void</type>
-      <name>httpBorrowNet</name>
-      <anchorfile>group___http_net.html</anchorfile>
-      <anchor>ga4034c029cbd70e893cb70a462a73481b</anchor>
-      <arglist>(HttpNet *net)</arglist>
-    </member>
-    <member kind="function">
       <type>int</type>
       <name>httpConnectNet</name>
       <anchorfile>group___http_net.html</anchorfile>
@@ -1356,13 +1349,6 @@
       <name>httpReadIO</name>
       <anchorfile>group___http_net.html</anchorfile>
       <anchor>ga7bec0d5ca3a66252272e631c56eae55b</anchor>
-      <arglist>(HttpNet *net)</arglist>
-    </member>
-    <member kind="function">
-      <type>void</type>
-      <name>httpReturnNet</name>
-      <anchorfile>group___http_net.html</anchorfile>
-      <anchor>gae1272376040bde707ad46e859764f3ed</anchor>
       <arglist>(HttpNet *net)</arglist>
     </member>
     <member kind="function">
@@ -3618,8 +3604,8 @@
       <type>bool</type>
       <name>httpShouldTrace</name>
       <anchorfile>group___http_trace.html</anchorfile>
-      <anchor>ga1ab1d08747355309d8161f0ffdbee6eb</anchor>
-      <arglist>(HttpTrace *trace, cchar *name)</arglist>
+      <anchor>gabed1851068791030bfc1561824d68eb3</anchor>
+      <arglist>(HttpTrace *trace, cchar *type)</arglist>
     </member>
     <member kind="function">
       <type>int</type>
@@ -3715,6 +3701,13 @@
       <name>httpFinalizeConnector</name>
       <anchorfile>group___http_tx.html</anchorfile>
       <anchor>ga3c1824ead5dc214596ec5915e388b092</anchor>
+      <arglist>(HttpStream *stream)</arglist>
+    </member>
+    <member kind="function">
+      <type>void</type>
+      <name>httpFinalizeHttp2Stream</name>
+      <anchorfile>group___http_tx.html</anchorfile>
+      <anchor>gab097e366395a92d43dc24300c240b937</anchor>
       <arglist>(HttpStream *stream)</arglist>
     </member>
     <member kind="function">

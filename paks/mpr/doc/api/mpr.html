@@ -657,7 +657,7 @@ The MPR provides a high-performance thread-pool to share threads as required to 
 <tr class="apiDef"><td class="apiType"><a href="osdep.html#osdep_8h_1ad17d551e31d1828c68acf40684849b7e" class="ref">PUBLIC</a> ssize</td><td><a href="#group___mpr_path_1ga08a2c5f97ac0d7064555519a20afd7f1" class="nameRef">mprWritePathContents</a>(<a href="osdep.html#osdep_8h_1a0f128c3e0c83721af0220c00554e9c4e" class="ref">cchar</a> *path, <a href="osdep.html#osdep_8h_1a0f128c3e0c83721af0220c00554e9c4e" class="ref">cchar</a> *buf, <a href="osdep.html#osdep_8h_1a7d08ccc1e981eb4d5a238641ac4ccfc1" class="ref">ssize</a> len, int mode)</td></tr><tr class="apiBrief"><td>&nbsp;</td><td>Create a file and write contents.</td></tr>
 <tr class="apiDef"><td class="apiType"><a href="osdep.html#osdep_8h_1ad17d551e31d1828c68acf40684849b7e" class="ref">PUBLIC</a> ssize</td><td><a href="#group___mpr_socket_1ga4d9e81b45766fc182dc3b61e74f12225" class="nameRef">mprWriteSocket</a>(<a href="#group___mpr_socket" class="ref">MprSocket</a> *sp, <a href="osdep.html#osdep_8h_1a5272042f7e0f5c53e2fd4b49ff47d92d" class="ref">cvoid</a> *buf, <a href="osdep.html#osdep_8h_1a7d08ccc1e981eb4d5a238641ac4ccfc1" class="ref">ssize</a> len)</td></tr><tr class="apiBrief"><td>&nbsp;</td><td>Write to a socket.</td></tr>
 <tr class="apiDef"><td class="apiType"><a href="osdep.html#osdep_8h_1ad17d551e31d1828c68acf40684849b7e" class="ref">PUBLIC</a> ssize</td><td><a href="#group___mpr_socket_1gae535d0ebbc97a1f71d1f33b7ebcd6f0f" class="nameRef">mprWriteSocketString</a>(<a href="#group___mpr_socket" class="ref">MprSocket</a> *sp, <a href="osdep.html#osdep_8h_1a0f128c3e0c83721af0220c00554e9c4e" class="ref">cchar</a> *str)</td></tr><tr class="apiBrief"><td>&nbsp;</td><td>Write to a string to a socket.</td></tr>
-<tr class="apiDef"><td class="apiType"><a href="osdep.html#osdep_8h_1ad17d551e31d1828c68acf40684849b7e" class="ref">PUBLIC</a> ssize</td><td><a href="#group___mpr_socket_1ga154124aa966fe3784ceeb25724392ebf" class="nameRef">mprWriteSocketVector</a>(<a href="#group___mpr_socket" class="ref">MprSocket</a> *sp, <a href="#struct_mpr_i_o_vec" class="ref">MprIOVec</a> *iovec, int count)</td></tr><tr class="apiBrief"><td>&nbsp;</td><td>Write a vector to a socket.</td></tr>
+<tr class="apiDef"><td class="apiType"><a href="osdep.html#osdep_8h_1ad17d551e31d1828c68acf40684849b7e" class="ref">PUBLIC</a> ssize</td><td><a href="#group___mpr_socket_1ga154124aa966fe3784ceeb25724392ebf" class="nameRef">mprWriteSocketVector</a>(<a href="#group___mpr_socket" class="ref">MprSocket</a> *sp, <a href="#struct_mpr_i_o_vec" class="ref">MprIOVec</a> *iovec, int count)</td></tr><tr class="apiBrief"><td>&nbsp;</td><td>Write a vector of buffers to a socket.</td></tr>
 <tr class="apiDef"><td class="apiType"><a href="osdep.html#osdep_8h_1ad17d551e31d1828c68acf40684849b7e" class="ref">PUBLIC</a> cchar*</td><td><a href="#group___mpr_xml_1gaf9b085eafd4c44292885899ce80cafb5" class="nameRef">mprXmlGetErrorMsg</a>(<a href="#group___mpr_xml" class="ref">MprXml</a> *xp)</td></tr><tr class="apiBrief"><td>&nbsp;</td><td>Get the XML error message if mprXmlParse fails.</td></tr>
 <tr class="apiDef"><td class="apiType"><a href="osdep.html#osdep_8h_1ad17d551e31d1828c68acf40684849b7e" class="ref">PUBLIC</a> int</td><td><a href="#group___mpr_xml_1ga3c34f87e6eb4a3d8cef2cffe729e6a75" class="nameRef">mprXmlGetLineNumber</a>(<a href="#group___mpr_xml" class="ref">MprXml</a> *xp)</td></tr><tr class="apiBrief"><td>&nbsp;</td><td>Get the source XML line number.</td></tr>
 <tr class="apiDef"><td class="apiType"><a href="osdep.html#osdep_8h_1ad17d551e31d1828c68acf40684849b7e" class="ref">PUBLIC</a> void*</td><td><a href="#group___mpr_xml_1ga0fe3c394ca32c89c0e1352cfa0813a0b" class="nameRef">mprXmlGetParseArg</a>(<a href="#group___mpr_xml" class="ref">MprXml</a> *xp)</td></tr><tr class="apiBrief"><td>&nbsp;</td><td>Get the XML callback argument.</td></tr>
@@ -962,10 +962,6 @@ The MPR provides a high-performance thread-pool to share threads as required to 
 <td>#define</td><td><a href="#mpr_8h_1acbca6bd804a91e8cf0ed731c1a2d35af" class="nameRef">MPR_DISABLE_GC</a>&nbsp;&nbsp;&nbsp;0x1</td>
 </tr>
 <tr class="apiBrief"><td>&nbsp;</td><td>Disable GC.</td></tr>
-<tr class="apiDef">
-<td>#define</td><td><a href="#mpr_8h_1a6ed9b0c468cf6344582c907e35dd7364" class="nameRef">MPR_DISPATCHER_ACTIVE</a>&nbsp;&nbsp;&nbsp;0x20</td>
-</tr>
-<tr class="apiBrief"><td>&nbsp;</td><td>Dispatching events.</td></tr>
 <tr class="apiDef">
 <td>#define</td><td><a href="#mpr_8h_1ab0f3013da15539678a4c591e5ec15298" class="nameRef">MPR_DISPATCHER_AUTO</a>&nbsp;&nbsp;&nbsp;0x8</td>
 </tr>
@@ -5231,7 +5227,7 @@ The command is immediately killed
     <tr><td class="param"><a class="ref" href="#struct_mpr_cond">MprCond</a> *</td><td><td>cond</td><td>
 Multi-thread sync.
 </td>
-    <tr><td class="param">MprEvent *</td><td><td>current</td><td>
+    <tr><td class="param">MprEvent *</td><td><td>currentQ</td><td>
 Currently executing event.
 </td>
     <tr><td class="param">MprEvent *</td><td><td>eventQ</td><td>
@@ -11869,13 +11865,13 @@ This is used to prevent further I/O wait events while still preserving the socke
 (<a href="#group___mpr_socket" class="ref">MprSocket</a> *sp, <a href="#struct_mpr_i_o_vec" class="ref">MprIOVec</a> *iovec, int count)
   </div>
   <div class="apiDetail">
-<p>Write a vector to a socket.</p>
-    <dl><dt><b>Description</b>:</dt><dd>Do scatter/gather I/O by writing a vector of buffers to a socket.</dd></dl>
+<p>Write a vector of buffers to a socket.</p>
+    <dl><dt><b>Description</b>:</dt><dd>Do scatter/gather I/O by writing a vector of buffers to a socket. May return with a short write having written less than the total.</dd></dl>
     <dl><dt>Parameters:</dt><dd>
     <table class="parameters" title="Parameters">
     <tr><td class="param">sp</td><td>Socket object returned from <a class="ref" href="#group___mpr_socket_1ga38bf5e257af2b015c8856248d74ab4cf">mprCreateSocket</a></td>
     <tr><td class="param">iovec</td><td>Vector of data to write before the file contents.</td>
-    <tr><td class="param">count</td><td>Count of entries in beforeVect.</td>
+    <tr><td class="param">count</td><td>Count of entries in iovec.</td>
     </table></dd></dl>
     <dl><dt>Returns:</dt><dd>A count of bytes actually written. Return a negative MPR error code on errors and if the socket cannot absorb any more data. If the transport is saturated, will return a negative error and <a class="ref" href="#group___mpr_1gac845a04a3fe2cb251e700b31026b875f">mprGetError()</a> returns EAGAIN or EWOULDBLOCK.</dd></dl>
     <dl><dt><b>API</b> Stability:</dt><dd>Stable.</dd></dl>
