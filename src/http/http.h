@@ -390,7 +390,7 @@ typedef int (*HttpListenCallback)(struct HttpEndpoint *endpoint);
     Redirect callback. Invoked before processing redirects
     @return New target Uri and *code to contain the status
     @ingroup HttpStream
-    @stability Prototype
+    @stability Evolving
  */
 typedef cchar *(*HttpRedirectCallback)(struct HttpStream *stream, int *code, cchar *uri);
 
@@ -806,7 +806,7 @@ PUBLIC void httpLogProc(HttpTrace *trace, cchar *event, cchar *type, int flags, 
     @param buf Data buffer to trace
     @param len Size of buffer
     @ingroup HttpTrace
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC void httpLogRxPacket(struct HttpNet *net, cchar *buf, ssize len);
 
@@ -816,7 +816,7 @@ PUBLIC void httpLogRxPacket(struct HttpNet *net, cchar *buf, ssize len);
     @param net HttpNet object
     @param len Length in bytes actually written
     @ingroup HttpTrace
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC void httpLogTxPacket(struct HttpNet *net, ssize len);
 
@@ -825,7 +825,7 @@ PUBLIC void httpLogTxPacket(struct HttpNet *net, ssize len);
     @description This traces the request metrics
     @param stream HttpStream object
     @ingroup HttpTrace
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC void httpLogCompleteRequest(struct HttpStream *stream);
 
@@ -946,7 +946,7 @@ PUBLIC void httpSetTraceFormatterName(HttpTrace *trace, cchar *name);
     @param trace Tracing object
     @param type Event type to consider
     @ingroup HttpTrace
-    @stability Prototype.
+    @stability Evolving.
     @returns True if trace should be emitted
  */
 PUBLIC bool httpShouldTrace(HttpTrace *trace, cchar *type);
@@ -1223,7 +1223,7 @@ PUBLIC void httpDestroy(void);
     Enable or disable HTTP/2 for the server at runtime.
     @param enable Boolean. Set to 1 to enable and zero to disable.
     @ingroup Http
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC void httpEnableHttp2(int enable);
 
@@ -1332,7 +1332,7 @@ PUBLIC void httpSetDefaultClientPort(int port);
     Define a callback to invoke after env vars have been defined
     @param envCallback Callback to invoke
     @ingroup Http
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC void httpSetEnvCallback(HttpEnvCallback envCallback);
 
@@ -1390,7 +1390,7 @@ PUBLIC void httpSetProxy(cchar *host, int port);
     Define a callback to invoke on redirect requests
     @param redirectCallback Callback to invoke
     @ingroup Http
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC void httpSetRedirectCallback(HttpRedirectCallback redirectCallback);
 
@@ -1545,7 +1545,7 @@ PUBLIC void httpInitLimits(HttpLimits *limits, bool serverSide);
     @description Clone the limits and allocate a new limits object
     @return The allocated limits object
     @ingroup HttpLimits
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC HttpLimits *httpCloneLimits(HttpLimits *base);
 
@@ -2491,7 +2491,7 @@ PUBLIC void httpSuspendQueue(HttpQueue *q);
     @param inq Input q
     @param outq Output q
     @ingroup HttpQueue
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC void httpTransferPackets(HttpQueue *inq, HttpQueue *outq);
 
@@ -2503,7 +2503,7 @@ PUBLIC void httpTransferPackets(HttpQueue *inq, HttpQueue *outq);
     @param inq Input q
     @param outq Output q
     @ingroup HttpQueue
-    @stability Prototype
+    @stability Evolving
  */
 
 PUBLIC void httpReplayPackets(HttpQueue *inq, HttpQueue *outq);
@@ -2927,16 +2927,6 @@ PUBLIC HttpStage *httpCreateStage(cchar *name, int flags, MprModule *module);
 PUBLIC struct HttpStage *httpLookupStage(cchar *name);
 
 /**
-    Default incoming put callback.
-    @description Adds packet to the service queue
-    @param q Current queue
-    @param packet Packet containg data
-    @ingroup HttpStage
-    @stability Stable
-*/
-PUBLIC void httpDefaultIncoming(HttpQueue *q, HttpPacket *packet);
-
-/**
     Default stage service routine handling
     @description This routine provides default service handling of data for stages. It simply sends all packets
         downstream. It handles flow control automatically.
@@ -2961,8 +2951,9 @@ PUBLIC void httpDiscardService(HttpQueue *q);
         It puts the packet to the next Stage's incoming service queue or incoming routine if there
         is no service routine defined.
     @param q Queue object
+    @param packet Packet object
     @ingroup HttpStage
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC void httpDefaultIncoming(HttpQueue *q, HttpPacket *packet);
 
@@ -2971,8 +2962,9 @@ PUBLIC void httpDefaultIncoming(HttpQueue *q, HttpPacket *packet);
     @description This routine provides default outgoing handling of data for stages. It puts the packet
         to the next Stage's outgoing service queue or outgoing routine if there is no service routine defined.
     @param q Queue object
+    @param packet Packet to send.
     @ingroup HttpStage
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC void httpDefaultOutgoing(HttpQueue *q, HttpPacket *packet);
 
@@ -3364,7 +3356,7 @@ PUBLIC void httpBorrowNet(HttpNet *net);
     @param ssl MprSsl object that defines the SSL context
     @return Zero if successful, otherwise a negative MPR error code.
     @ingroup HttpNet
-    @stability Prototype
+    @stability Evolving
   */
 PUBLIC int httpConnectNet(HttpNet *net, cchar *ip, int port, MprSsl *ssl);
 
@@ -3558,7 +3550,6 @@ PUBLIC void httpSetAsync(HttpNet *net, bool async);
     @param net If defined, set the callback on the net object. Otherwise update the default net callback for
         future network objects.
     @param callback The callback is invoked with the signature: void callback(HttpNet *net).
-    @param event HTTP_NET event indicating error or eof.
     @ingroup HttpNet
     @stability Evolving
  */
@@ -3577,7 +3568,7 @@ PUBLIC void httpSetNetContext(HttpNet *net, void *context);
     Set the EOF flag in the network to indicate a peer disconnect
     @param net HttpNet Network object created via #httpCreateNet
     @ingroup HttpNet
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC void httpSetNetEof(HttpNet *net);
 
@@ -3585,7 +3576,7 @@ PUBLIC void httpSetNetEof(HttpNet *net);
     Set the error flag in the network to indicate a peer disconnect
     @param net HttpNet Network object created via #httpCreateNet
     @ingroup HttpNet
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC void httpSetNetError(HttpNet *net);
 
@@ -3613,7 +3604,7 @@ PUBLIC void httpSetNetProtocol(HttpNet *net, int protocol);
     @param net HttpNet object created via #httpCreateNet
     @return A clone of the network's MprSocket object with the socket handle.
     @ingroup HttpNet
-    @stability Evolving
+    @stability Deprecated
  */
 PUBLIC MprSocket *httpStealSocket(HttpNet *net);
 
@@ -3625,7 +3616,7 @@ PUBLIC MprSocket *httpStealSocket(HttpNet *net);
     @param net HttpNet object created via #httpCreateNet
     @return The O/S Socket handle.
     @ingroup HttpNet
-    @stability Evolving
+    @stability Deprecated
  */
 PUBLIC Socket httpStealSocketHandle(HttpNet *net);
 #endif
@@ -3685,7 +3676,7 @@ PUBLIC void httpSetupWaitHandler(HttpNet *net, int eventMask);
 /**
     Event callback function for httpCreateEvent
     @ingroup HttpStream
-    @stability Prototype
+    @stability Evolving
  */
 typedef void (*HttpEventProc)(struct HttpStream *stream, void *data);
 
@@ -3840,7 +3831,7 @@ typedef struct HttpStream {
     @param stream HttpStream stream object created via #httpCreateStream
     @param q Queue to receive the packet
     @ingroup HttpStream
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC void httpAddInputEndPacket(HttpStream *stream, HttpQueue *q);
 
@@ -3986,7 +3977,7 @@ PUBLIC void httpError(HttpStream *stream, int status, cchar *fmt, ...) PRINTF_AT
         MPR thread.  While foreign threads using this API may return a stream reference, the stream may be destroyed
         before the reference can be used.
     @ingroup HttpStream
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC HttpStream *httpFindStream(uint64 seqno, HttpEventProc proc, void *data);
 
@@ -4470,7 +4461,7 @@ PUBLIC void httpSetAuthStoreVerify(HttpAuthStore *store, HttpVerifyUser verifyUs
     @param storeName String name of the store
     @param verifyUser Verification callback
     @ingroup HttpAuth
-    @stability Prototype
+    @stability Evolving
     @see httpSetAuthVerify httpSetAuthStoreVerify httpGetAuthStore
   */
 PUBLIC void httpSetAuthStoreVerifyByName(cchar *storeName, HttpVerifyUser verifyUser);
@@ -6318,7 +6309,7 @@ PUBLIC void httpSetRouteCookiePersist(HttpRoute *route, int enable);
     @param route Route to modify
     @param value Set to "lax", "strict" or NULL/empty.
     @ingroup HttpRoute
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC void httpSetRouteCookieSame(HttpRoute *route, cchar *value);
 
@@ -6378,7 +6369,7 @@ PUBLIC void httpSetRouteRenameUploads(HttpRoute *route, bool enable);
     @param script Literal script to execute.
     @param scriptPath Pathname to the script file to execute
     @ingroup HttpRoute
-    @stability Stable
+    @stability Deprecated
     @internal
  */
 PUBLIC void httpSetRouteScript(HttpRoute *route, cchar *script, cchar *scriptPath);
@@ -6550,7 +6541,7 @@ PUBLIC void httpSetRouteUploadDir(HttpRoute *route, cchar *dir);
     @param route Route to modify
     @param workers Maximum number of workers for this route
     @ingroup HttpRoute
-    @stability Stable
+    @stability Deprecated
     @internal
  */
 PUBLIC void httpSetRouteWorkers(HttpRoute *route, int workers);
@@ -8866,7 +8857,7 @@ PUBLIC HttpDir *httpGetDirObj(HttpRoute *route);
     @param data Data to pass to the callback. This is unmanaged data. The caller is responsible for retaining and freeing.
     @return "Zero" if the stream can be found and the event is scheduled, Otherwise returns MPR_ERR_CANT_FIND.
     @ingroup HttpStream
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC int httpCreateEvent(uint64 streamSeqno, HttpEventProc callback, void *data);
 

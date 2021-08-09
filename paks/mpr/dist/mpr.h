@@ -1868,7 +1868,7 @@ PUBLIC int scaselesscmp(cchar *s1, cchar *s2);
     @param pattern String pattern to search for.
     @return Returns a reference to the start of the pattern in the string. If not found, returns NULL.
     @ingroup MprString
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC char *scaselesscontains(cchar *str, cchar *pattern);
 
@@ -3112,7 +3112,7 @@ PUBLIC int mprSetBufSize(MprBuf *buf, ssize size, ssize maxSize);
         as a string pointer.
     @param buf Buffer created via mprCreateBuf
     @ingroup MprBuf
-    @stability Prototype
+    @stability Evolving
   */
 PUBLIC void mprAddNullToWideBuf(MprBuf *buf);
 
@@ -6153,7 +6153,7 @@ PUBLIC MprEvent *mprCreateEvent(MprDispatcher *dispatcher, cchar *name, MprTicks
     @param flags Flags. See #mprCreateEvent for details.
     @see MprEvent MprWaitHandler mprCreateEvent mprCreateWaitHandler mprQueueIOEvent
     @ingroup MprEvent
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC MprEvent *mprCreateLocalEvent(MprDispatcher *dispatcher, cchar *name, MprTicks period, void *proc, void *data, int flags);
 
@@ -6727,7 +6727,7 @@ PUBLIC MprJson *mprHashToJson(MprHash *hash);
     @param list MprList to hold environment strings. Set to NULL and this routine will create a list.
     @return A list of environment strings
     @ingroup MprJson
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC MprList *mprJsonToEnv(MprJson *json, cchar *prefix, MprList *list);
 
@@ -7528,7 +7528,7 @@ typedef struct MprSocketProvider {
         @param ssl SSL configurations to use.
         @param flags Set to MPR_SOCKET_SERVER for server side use.
         @returns Zero if successful, otherwise a negative MPR error code.
-        @stability Prototype
+        @stability Evolving
      */
     int  (*preload)(struct MprSsl *ssl, int flags);
 
@@ -7633,7 +7633,7 @@ PUBLIC int mprSetMaxSocketAccept(int max);
     Set the prebind callback for a socket
     @param callback Callback to invoke
     @ingroup MprSocket
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC void mprSetSocketPrebindCallback(MprSocketPrebind callback);
 
@@ -8304,14 +8304,14 @@ PUBLIC int mprSslInit(void *unused, MprModule *module);
 /**
     Preload SSL configuration
     @ingroup MprSsl
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC int mprPreloadSsl(struct MprSsl *ssl, int flags);
 
 /**
     Set the ALPN protocols for SSL
     @ingroup MprSsl
-    @stability Prototype
+    @stability Evolving
  */
 PUBLIC void mprSetSslAlpn(struct MprSsl *ssl, cchar *protocols);
 
