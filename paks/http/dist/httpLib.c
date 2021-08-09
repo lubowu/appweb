@@ -14351,6 +14351,10 @@ PUBLIC MprSocket *httpStealSocket(HttpNet *net)
             httpDestroyStream(stream);
             next--;
         }
+        if (net->servicing) {
+            httpMonitorNetEvent(net, HTTP_COUNTER_ACTIVE_CONNECTIONS, -1);
+            net->servicing = 0;
+        }
         sock = mprCloneSocket(net->sock);
         (void) mprStealSocketHandle(net->sock);
         mprRemoveSocketHandler(net->sock);
@@ -14507,6 +14511,7 @@ PUBLIC HttpNet *httpAccept(HttpEndpoint *endpoint, MprEvent *event)
     if ((address = httpMonitorAddress(net, 0)) == 0) {
         mprLog("net info", 1, "Connection denied for IP %s. Too many concurrent clients, active: %d, max:%d",
             net->ip, mprGetHashLength(http->addresses), net->limits->clientMax);
+        //  Increment here because DestroyNet always will decrement
         httpMonitorNetEvent(net, HTTP_COUNTER_ACTIVE_CONNECTIONS, 1);
         httpDestroyNet(net);
         return 0;
