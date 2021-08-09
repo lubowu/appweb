@@ -198,6 +198,38 @@
                 </tbody>
             </table>
 
+            <a id="limitConnectionsPerClient"></a>
+            <h2>LimitConnectionsPerClient</h2>
+            <table class="directive" title="directive">
+                <tbody>
+                    <tr>
+                        <td class="pivot">Description</td>
+                        <td>Sets the maximum number of simultaneous client endpoint connections for a single client (IP address)</td>
+                    </tr>
+                    <tr>
+                        <td class="pivot">Synopsis</td>
+                        <td>LimitConnectionsPerClient count</td>
+                    </tr>
+                    <tr>
+                        <td class="pivot">Context</td>
+                        <td>Default server, VirtualHost</td>
+                    </tr>
+                    <tr>
+                        <td class="pivot">Example</td>
+                        <td>LimitConnectionsPerClient 50</td>
+                    </tr>
+                    <tr>
+                        <td class="pivot">Notes</td>
+                        <td>
+                            <p>The LimitConnectionsPerClient directive defines the maximum number of simultaneous
+                            client connections to the server from a single IP address. Connections in excess of this count will
+                            be rejected. Set to "unlimited" for no limit.</p>
+                            <p>This directive counts the number of client socket connections from a single IP address. A single browser may open many separate connections (typically up to 6). </p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
             <a id="limitFiles"></a>
             <h2>LimitFiles</h2>
             <table class="directive" title="directive">
