@@ -1408,13 +1408,6 @@
       <arglist>(HttpNet *net, int protocol)</arglist>
     </member>
     <member kind="function">
-      <type>MprSocket *</type>
-      <name>httpStealSocket</name>
-      <anchorfile>group___http_net.html</anchorfile>
-      <anchor>gab6a62599342ff465c504392840d03d46</anchor>
-      <arglist>(HttpNet *net)</arglist>
-    </member>
-    <member kind="function">
       <type>Socket</type>
       <name>httpStealSocketHandle</name>
       <anchorfile>group___http_net.html</anchorfile>

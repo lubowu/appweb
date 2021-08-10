@@ -2086,6 +2086,17 @@ PUBLIC char *slower(cchar *str);
 PUBLIC bool smatch(cchar *s1, cchar *s2);
 
 /**
+    Secure compare strings.
+    @description Compare two strings in constant time. This is similar to #smatch but will not fail fast on first char mismatch.
+    @param s1 First string to compare.
+    @param s2 Second string to compare.
+    @return Returns true if the strings are equivalent, otherwise false.
+    @ingroup MprString
+    @stability Prototype
+ */
+PUBLIC bool smatchsec(cchar *s1, cchar *s2);
+
+/**
     Compare strings ignoring case.
     @description Compare two strings ignoring case differences for a given string length. This call operates
         similarly to strncasecmp.

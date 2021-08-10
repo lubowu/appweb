@@ -24495,6 +24495,26 @@ PUBLIC bool smatch(cchar *s1, cchar *s2)
 }
 
 
+/*
+    Secure constant time comparison
+*/
+PUBLIC bool smatchsec(cchar *s1, cchar *s2)
+{
+    ssize   i, len1, len2;
+    uchar   c;
+
+    len1 = slen(s1);
+    len2 = slen(s2);
+    if (len1 != len2) {
+        return 0;
+    }
+    for (i = 0, c = 0; i < len1; i++) {
+        c |= (uchar) s1[i] ^ (uchar) s2[i];
+    }
+    return !c;
+}
+
+
 PUBLIC int sncaselesscmp(cchar *s1, cchar *s2, ssize n)
 {
     int     rc;

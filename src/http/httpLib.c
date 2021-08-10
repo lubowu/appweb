@@ -2058,7 +2058,7 @@ static bool configVerifyUser(HttpStream *stream, cchar *username, cchar *passwor
                 password = mprGetMD5(sfmt("%s:%s:%s", username, auth->realm, password));
                 stream->encoded = 1;
             }
-            success = smatch(password, requiredPassword);
+            success = smatchsec(password, requiredPassword);
         }
         if (success) {
             httpLog(stream->trace, "auth.login.authenticated", "context", "msg:User authenticated, username:%s", username);

@@ -547,7 +547,6 @@
 <tr class="apiDef"><td class="apiType">void</td><td><a href="#group___http_stream_1ga39ef08587a3915529652a266a1ec84a9" class="nameRef">httpStartPipeline</a>(<a href="#group___http_stream" class="ref">HttpStream</a> *stream)</td></tr><tr class="apiBrief"><td>&nbsp;</td><td>Start the pipeline.</td></tr>
 <tr class="apiDef"><td class="apiType">int</td><td><a href="#group___http_trace_1gacf198f252c9c854bc36d7db737b0309d" class="nameRef">httpStartTracing</a>(<a href="osdep.html#osdep_8h_1a0f128c3e0c83721af0220c00554e9c4e" class="ref">cchar</a> *traceSpec)</td></tr><tr class="apiBrief"><td>&nbsp;</td><td>Start tracing for the given trace log file when instructed via a command line switch.</td></tr>
 <tr class="apiDef"><td class="apiType">char*</td><td><a href="#group___http_stats_1ga7895265873d5e93a5da00d2423ccb886" class="nameRef">httpStatsReport</a>(int flags)</td></tr><tr class="apiBrief"><td>&nbsp;</td><td>Get an Http performance report.</td></tr>
-<tr class="apiDef"><td class="apiType"><a href="mpr.html#group___mpr_socket" class="ref">MprSocket*</a></td><td><a href="#group___http_net_1gab6a62599342ff465c504392840d03d46" class="nameRef">httpStealSocket</a>(<a href="#group___http_net" class="ref">HttpNet</a> *net)</td></tr><tr class="apiBrief"><td>&nbsp;</td><td>Steal a socket from a network.</td></tr>
 <tr class="apiDef"><td class="apiType"><a href="osdep.html#osdep_8h_1af9381320a2640ea84038579d8f143c01" class="ref">Socket</a></td><td><a href="#group___http_net_1ga1acfae15c98426f081283fbd4a2fa869" class="nameRef">httpStealSocketHandle</a>(<a href="#group___http_net" class="ref">HttpNet</a> *net)</td></tr><tr class="apiBrief"><td>&nbsp;</td><td>Steal the O/S socket handle from the network socket object.</td></tr>
 <tr class="apiDef"><td class="apiType">void</td><td><a href="#group___http_endpoint_1ga4c1deccf2ac027252158420937d43156" class="nameRef">httpStopEndpoint</a>(<a href="#group___http_endpoint" class="ref">HttpEndpoint</a> *endpoint)</td></tr><tr class="apiBrief"><td>&nbsp;</td><td>Stop the server listening for client connections.</td></tr>
 <tr class="apiDef"><td class="apiType">void</td><td><a href="#group___http_endpoint_1ga76e8b03665a2f55f57124582d86fb2fd" class="nameRef">httpStopEndpoints</a>(void)</td></tr><tr class="apiBrief"><td>&nbsp;</td><td>Stop listening for client connections on all endpoints.</td></tr>
@@ -5401,27 +5400,6 @@ Transmission writing is blocked.
     <tr><td class="param">protocol</td><td>Integer representing the protocol variant. Valid values are: 0 for HTTP/1.0, 1 for HTTP/1.1 and 2 for HTTP/2.</td>
     </table></dd></dl>
     <dl><dt><b>API</b> Stability:</dt><dd>Evolving.</dd></dl>
-    <dl><dt>See Also:</dt><dd>
-    <a href="#group___http_net" class="ref">HttpNet</a>, <a href="#group___http_net_1gab027e3ef30d81227a24ffed98f7c6a96" class="ref">httpConnectNet</a>, <a href="#group___http_net_1ga0d3ddf2e5ae45da02660b15f4a7a864f" class="ref">httpCreateNet</a>, <a href="#group___http_net_1ga220af8aa09631cab5611bb43cefa6326" class="ref">httpDestroyNet</a>, <a href="#group___http_net_1ga63f40de694251842784c73222fb623df" class="ref">httpEnableNetEvents</a>, <a href="#group___http_net_1ga0c02feaf53cf26fc8868e23f62ad008d" class="ref">httpGetAsync</a>, <a href="#group___http_net_1ga655a8fc5aca8ceedd674f9872f91e029" class="ref">httpGetProtocol</a>, <a href="#group___http_net_1gae3e5ac2c00bb0dee853106e959faac6b" class="ref">httpIOEvent</a>, <a href="#group___http_net_1ga6f1b7da33c91b00ce45a9f2e306918ca" class="ref">httpNetError</a>, <a href="#group___http_net_1ga63c6a6f7572ca711b3553c039e554764" class="ref">httpNetTimeout</a>, <a href="#group___http_net_1ga3c350df7b29e7f681336742e180ef86c" class="ref">httpServiceNetQueues</a>, <a href="#group___http_net_1gabf32c70345191a5d2807a5fbb040a720" class="ref">httpSetAsync</a>, <a href="#group___http_net_1ga57705d69b2dd9cb1c488503f1cc550c6" class="ref">httpSetIOCallback</a>, <a href="#group___http_net_1ga456d499b18ce57d176946ec45274d60a" class="ref">httpSetNetContext</a></dd></dl>
-  </div>
-</div>
-<a name="group___http_net_1gab6a62599342ff465c504392840d03d46"></a>
-<div class="api">
-  <div class="prototype">
-    <a href="mpr.html#group___mpr_socket" class="ref">MprSocket</a> *
-    httpStealSocket
-(<a href="#group___http_net" class="ref">HttpNet</a> *net)
-  </div>
-  <div class="apiDetail">
-<p>Steal a socket from a network.</p>
-    <dl><dt><b>Description</b>:</dt><dd>Steal the MprSocket object from a network so the caller can assume total responsibility for the socket. This routine returns a clone of the networks&apos;s socket object with the socket O/S handle. The handle is removed from the networks&apos;s socket object. The network retains ownership of the original MprSocket object <ndash/> sans the socket handle. This is done to preserve the HttpNetwork.sock object but remove the socket handle from its management. <br/><br/>
-Note: All current streams are aborted and queue data is discarded. After calling, the normal Appweb request and inactivity timeouts will not apply to the returned socket object. It is the callers responsibility to call mprCloseSocket on the returned MprSocket when ready.</dd></dl>
-    <dl><dt>Parameters:</dt><dd>
-    <table class="parameters" title="Parameters">
-    <tr><td class="param">net</td><td>HttpNet object created via <a class="ref" href="#group___http_net_1ga0d3ddf2e5ae45da02660b15f4a7a864f">httpCreateNet</a></td>
-    </table></dd></dl>
-    <dl><dt>Returns:</dt><dd>A clone of the network&apos;s MprSocket object with the socket handle.</dd></dl>
-    <dl><dt><b>API</b> Stability:</dt><dd>Deprecated.</dd></dl>
     <dl><dt>See Also:</dt><dd>
     <a href="#group___http_net" class="ref">HttpNet</a>, <a href="#group___http_net_1gab027e3ef30d81227a24ffed98f7c6a96" class="ref">httpConnectNet</a>, <a href="#group___http_net_1ga0d3ddf2e5ae45da02660b15f4a7a864f" class="ref">httpCreateNet</a>, <a href="#group___http_net_1ga220af8aa09631cab5611bb43cefa6326" class="ref">httpDestroyNet</a>, <a href="#group___http_net_1ga63f40de694251842784c73222fb623df" class="ref">httpEnableNetEvents</a>, <a href="#group___http_net_1ga0c02feaf53cf26fc8868e23f62ad008d" class="ref">httpGetAsync</a>, <a href="#group___http_net_1ga655a8fc5aca8ceedd674f9872f91e029" class="ref">httpGetProtocol</a>, <a href="#group___http_net_1gae3e5ac2c00bb0dee853106e959faac6b" class="ref">httpIOEvent</a>, <a href="#group___http_net_1ga6f1b7da33c91b00ce45a9f2e306918ca" class="ref">httpNetError</a>, <a href="#group___http_net_1ga63c6a6f7572ca711b3553c039e554764" class="ref">httpNetTimeout</a>, <a href="#group___http_net_1ga3c350df7b29e7f681336742e180ef86c" class="ref">httpServiceNetQueues</a>, <a href="#group___http_net_1gabf32c70345191a5d2807a5fbb040a720" class="ref">httpSetAsync</a>, <a href="#group___http_net_1ga57705d69b2dd9cb1c488503f1cc550c6" class="ref">httpSetIOCallback</a>, <a href="#group___http_net_1ga456d499b18ce57d176946ec45274d60a" class="ref">httpSetNetContext</a></dd></dl>
   </div>
