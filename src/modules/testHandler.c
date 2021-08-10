@@ -147,6 +147,35 @@ PUBLIC int httpTestInit(Http* http, MprModule *module)
 	handler->close = test_close;
 	return 0;
 }
+
+
+#if TEST_STEAL
+static void test_ready(HttpQueue* q)
+{
+    HttpPacket  *packet;
+    HttpStream  *stream;
+    int         fd;
+
+    stream = q->stream;
+    httpSetStatus(stream, HTTP_CODE_OK);
+    httpSetContentLength(stream, 0);
+    // httpWrite(q, "Hello\n");
+    httpFinalize(stream);
+    httpFlushAll(stream);
+    fd = httpStealSocketHandle(q->net);
+    closesocket(fd);
+}
+
+PUBLIC int httpTestInit(Http* http, MprModule *module)
+{
+	HttpStage  *handler;
+
+	handler = httpCreateHandler("test", module);
+	handler->ready = test_ready;
+	return 0;
+}
+#endif /* TEST_STEAL */
+
 #endif
 
 /*
