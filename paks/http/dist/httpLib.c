@@ -14360,7 +14360,6 @@ PUBLIC MprSocket *httpStealSocket(HttpNet *net)
         mprRemoveSocketHandler(net->sock);
         httpRemoveNet(net);
 
-        /* This will cause httpIOEvent to regard this as a client connection and not destroy this connection */
         net->endpoint = 0;
         net->async = 0;
         unlock(net->http);
@@ -14368,6 +14367,7 @@ PUBLIC MprSocket *httpStealSocket(HttpNet *net)
     }
     return 0;
 }
+#endif
 
 
 /*
@@ -14379,7 +14379,6 @@ PUBLIC Socket httpStealSocketHandle(HttpNet *net)
 {
     return mprStealSocketHandle(net->sock);
 }
-#endif
 
 
 PUBLIC cchar *httpGetProtocol(HttpNet *net)

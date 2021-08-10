@@ -3590,7 +3590,7 @@ PUBLIC void httpSetNetError(HttpNet *net);
  */
 PUBLIC void httpSetNetProtocol(HttpNet *net, int protocol);
 
-#if DEPRECATE || 1
+#if DEPRECATE
 /**
     Steal a socket from a network
     @description Steal the MprSocket object from a network so the caller can assume total responsibility for the socket.
@@ -3607,6 +3607,7 @@ PUBLIC void httpSetNetProtocol(HttpNet *net, int protocol);
     @stability Deprecated
  */
 PUBLIC MprSocket *httpStealSocket(HttpNet *net);
+#endif
 
 /**
     Steal the O/S socket handle from the network socket object.
@@ -3619,7 +3620,6 @@ PUBLIC MprSocket *httpStealSocket(HttpNet *net);
     @stability Deprecated
  */
 PUBLIC Socket httpStealSocketHandle(HttpNet *net);
-#endif
 
 /*
     Internal
