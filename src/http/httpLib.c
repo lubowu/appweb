@@ -17003,8 +17003,9 @@ static int processContent(HttpStream *stream)
 
 
 /*
-    In the ready state after all content has been received.
+    In the ready state.
     If streaming, the request will have already been routed and the handler started.
+    If not streaming, all content has been received.
  */
 static int processReady(HttpStream *stream)
 {
@@ -17021,6 +17022,9 @@ static int processReady(HttpStream *stream)
             }
         }
     }
+    //  Ensure incomingService can receive data before ready event if not streaming
+    httpServiceNetQueues(stream->net, 0);
+
     httpReadyHandler(stream);
     if (httpClientStream(stream) && !stream->upgraded) {
         httpFinalize(stream);
