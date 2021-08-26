@@ -25355,12 +25355,15 @@ PUBLIC MprThread *mprGetCurrentThread()
     ts = MPR->threadService;
     if (ts && ts->threads) {
         id = mprGetCurrentOsThread();
+        lock(ts->threads);
         for (i = 0; i < ts->threads->length; i++) {
             tp = mprGetItem(ts->threads, i);
             if (tp->osThread == id) {
+                unlock(ts->threads);
                 return tp;
             }
         }
+        unlock(ts->threads);
     }
     return 0;
 }
