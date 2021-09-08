@@ -1743,10 +1743,10 @@ static int sortLocation(cvoid *l1, cvoid *l2)
 
 static void printTracking()
 {
-    MprLocationStats     *lp;
+    MprLocationStats    *lp;
     double              mb;
     size_t              total;
-    cchar                **np;
+    cchar               **np;
 
     printf("\nAllocation Stats\n     Size Location\n");
     memcpy(sortLocations, heap->stats.locations, sizeof(sortLocations));
@@ -11216,7 +11216,8 @@ PUBLIC MprEvent *mprCreateTimerEvent(MprDispatcher *dispatcher, cchar *name, Mpr
     Create and queue an event for execution by a dispatcher.
     May be called by foreign threads if:
     - The dispatcher and data are held or null.
-    - The caller is responsible for the data memory.
+    - The caller is responsible for the data memory
+    - The caller is responsibile to either set MPR_EVENT_LOCAL or calling mprRelase on the event.
  */
 PUBLIC MprEvent *mprCreateEvent(MprDispatcher *dispatcher, cchar *name, MprTicks period, void *proc, void *data, int flags)
 {
@@ -11242,6 +11243,7 @@ static MprEvent *createEvent(MprDispatcher *dispatcher, cchar *name, MprTicks pe
     }
     /*
         The hold is for allocations via foreign threads which retains the event until it is queued.
+        The hold is released after the event is queued.
      */
     aflags = MPR_ALLOC_MANAGER | MPR_ALLOC_ZERO;
     if (!(flags & MPR_EVENT_LOCAL)) {
@@ -11265,8 +11267,12 @@ static MprEvent *createEvent(MprDispatcher *dispatcher, cchar *name, MprTicks pe
     }
     event->period = period;
     event->due = event->timestamp + period;
+
     if (!(flags & MPR_EVENT_DONT_QUEUE)) {
         mprQueueEvent(dispatcher, event);
+        if (aflags & MPR_ALLOC_HOLD) {
+            mprRelease(event);
+        }
     }
     return event;
 }
