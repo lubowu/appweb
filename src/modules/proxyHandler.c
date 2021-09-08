@@ -408,6 +408,9 @@ static void proxyFrontNotifier(HttpStream *stream, int event, int arg)
     if ((req = stream->writeq->queueData) == 0) {
         return;
     }
+    if (req->proxyStream == NULL || req->proxyStream->destroyed) {
+        return;
+    }
     switch (event) {
     case HTTP_EVENT_READABLE:
     case HTTP_EVENT_WRITABLE:
@@ -480,6 +483,7 @@ static void proxyBackNotifier(HttpStream *proxyStream, int event, int arg)
 
     case HTTP_EVENT_DONE:
         httpLog(proxyStream->trace, "tx.proxy", "result", "msg:Request complete");
+        httpSetStreamNotifier(req->stream, NULL);
         httpDestroyStream(proxyStream);
 
         if (net->error || (net->protocol < 2 && (proxyStream->keepAliveCount <= 0 || proxyStream->upgraded))) {
