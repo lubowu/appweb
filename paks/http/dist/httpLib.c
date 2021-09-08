@@ -16953,12 +16953,10 @@ static int processParsed(HttpStream *stream)
         } else {
             stream->readq->max = stream->limits->rxFormSize;
         }
-
-        /*
-            Delay testing rxBodySize till after routing for streaming requests. This way, rxBodySize
-            can be defined per route.
-         */
         if (!rx->upload) {
+            /*
+                Delay testing rxBodySize till after routing for streaming requests. This way, rxBodySize can be defined per route.
+            */
             if (rx->length >= stream->limits->rxBodySize && stream->limits->rxBodySize != HTTP_UNLIMITED) {
                 httpLimitError(stream, HTTP_ABORT | HTTP_CODE_REQUEST_TOO_LARGE,
                     "Request content length %lld bytes is too big. Limit %lld", rx->length, stream->limits->rxBodySize);
