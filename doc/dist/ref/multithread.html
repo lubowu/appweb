@@ -215,16 +215,16 @@
             <p>Most Appweb APIs are not thread safe unless explicitly documented. Consequently, you must not call Appweb APIs from foreign (non-Appweb) threads or from Appweb threads while operating on another dispatcher. To operate on a connection or request, you must run such code from an event running on the appropriate dispatcher. </p>
 
             <p>To communicate or call Appweb APIs for a request or connection, you must create an event that will invoke your code or API on the connection's event dispatcher. To do this, use:
-            <a href="../ref/api/mpr.html#group___mpr_event_1gac6fcf6faf6ba5c85d7954fa416b73e30">mprCreateEvent</a>. This API is thread-safe and may be called from any Appweb or non-Appweb thread.</p>
+            <a href="../ref/api/http.html#group___http_stream_1ga10254442a823620d2ccd8b4334f71c38">httpCreateEvent</a>. This API is thread-safe and may be called from any Appweb or non-Appweb thread.</p>
 
             <pre class="ui code segment">
-mprCreateEvent(q-&gt;stream-&gt;dispatcher, "deviceEvent", 0, doMoreOutput, q, 0);
+httpCreateEvent(q-&gt;stream-&gt;seqno, callback, data);
 </pre>
-            <p>This call will schedule the function <em>doMoreOutput</em> to run from the connection dispatcher.</p>
-            <p>Application code is typically invoked by the Http state notifier or a similar web framework callback which provides a reference to the HttpStream object. Use HttpStream.dispacher (stream-&gt;dispatcher) to reference the dispatcher queue.</p>
+            <p>This call will schedule the function <em>callback</em> to run from the stream dispatcher.</p>
 
             <h4>Interacting with External Libraries or Services</h4>
-            <p>You can pass memory/messages from external libraries into Appweb via mprCreateEvent by using the MPR_EVENT_STATIC_DATA flag to indicate the message is not Appweb managed memory. When the event invokes your callback and you have finished with the memory, you can call free() if the memory was originally allocated directly or indirectly from malloc().</p>
+            <p>You can pass memory/messages from external libraries into Appweb via httpCreateEvent by using the MPR_EVENT_STATIC_DATA flag to indicate the message is not Appweb managed memory. When the event invokes your callback and you have finished with the memory, you can call free() if the memory was originally allocated directly or indirectly from malloc().</p>
+
             <a id="locking"></a>
             <h3>Locking</h3>
             <p>If you have a requirement for a data structure that will be accessed and manipulated simultaneously by multiple threads, the MPR provides a suite of locking primitives. See <a href="../ref/api/mpr.html#group___mpr_sync">MprSynch</a> for the MPR Multithreaded Synchronization Services.</p>

@@ -6135,6 +6135,13 @@
       <arglist>(cchar *s1, cchar *s2)</arglist>
     </member>
     <member kind="function">
+      <type>PUBLIC bool</type>
+      <name>smatchsec</name>
+      <anchorfile>group___mpr_string.html</anchorfile>
+      <anchor>ga4b8da9a4d97848096f11a839fa9183a7</anchor>
+      <arglist>(cchar *s1, cchar *s2)</arglist>
+    </member>
+    <member kind="function">
       <type>PUBLIC int</type>
       <name>sncaselesscmp</name>
       <anchorfile>group___mpr_string.html</anchorfile>
@@ -11349,6 +11356,13 @@
       <name>smatch</name>
       <anchorfile>group___mpr_string.html</anchorfile>
       <anchor>gad23a6d7a4a3b28f1ec39f373ba88eb19</anchor>
+      <arglist>(cchar *s1, cchar *s2)</arglist>
+    </member>
+    <member kind="function">
+      <type>PUBLIC bool</type>
+      <name>smatchsec</name>
+      <anchorfile>group___mpr_string.html</anchorfile>
+      <anchor>ga4b8da9a4d97848096f11a839fa9183a7</anchor>
       <arglist>(cchar *s1, cchar *s2)</arglist>
     </member>
     <member kind="function">

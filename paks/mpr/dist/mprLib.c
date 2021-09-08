@@ -11243,6 +11243,7 @@ static MprEvent *createEvent(MprDispatcher *dispatcher, cchar *name, MprTicks pe
     }
     /*
         The hold is for allocations via foreign threads which retains the event until it is queued.
+        The hold is released after the event is queued.
      */
     aflags = MPR_ALLOC_MANAGER | MPR_ALLOC_ZERO;
     if (!(flags & MPR_EVENT_LOCAL)) {
@@ -11266,8 +11267,12 @@ static MprEvent *createEvent(MprDispatcher *dispatcher, cchar *name, MprTicks pe
     }
     event->period = period;
     event->due = event->timestamp + period;
+
     if (!(flags & MPR_EVENT_DONT_QUEUE)) {
         mprQueueEvent(dispatcher, event);
+        if (aflags & MPR_ALLOC_HOLD) {
+            mprRelease(event);
+        }
     }
     return event;
 }
