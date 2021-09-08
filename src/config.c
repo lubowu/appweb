@@ -212,7 +212,7 @@ static int parseFileInner(MaState *state, cchar *path)
             continue;
         }
         if (!state->enabled) {
-            if (key[0] != '<') {
+            if (sncaselesscmp(key, "</if", 4) != 0) {
                 continue;
             }
         }
