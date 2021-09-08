@@ -53,7 +53,7 @@ extern "C" {
     #define ME_COM_SSL 0
 #endif
 #ifndef ME_COM_TEST
-    #define ME_COM_TEST 1
+    #define ME_COM_TEST 0
 #endif
 
 /******************************************************************************/
