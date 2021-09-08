@@ -16916,16 +16916,6 @@ static void processHeaders(HttpStream *stream)
             /* continue */
         }
         rx->streaming = httpGetStreaming(stream);
-        if (!rx->upload) {
-            if (rx->length >= stream->limits->rxBodySize && stream->limits->rxBodySize != HTTP_UNLIMITED) {
-                httpLimitError(stream, HTTP_ABORT | HTTP_CODE_REQUEST_TOO_LARGE,
-                    "Request content length %lld bytes is too big. Limit %lld", rx->length, stream->limits->rxBodySize);
-            }
-            if (rx->form && rx->length >= stream->limits->rxFormSize && stream->limits->rxFormSize != HTTP_UNLIMITED) {
-                httpLimitError(stream, HTTP_CLOSE | HTTP_CODE_REQUEST_TOO_LARGE,
-                    "Request form of %lld bytes is too big. Limit %lld", rx->length, stream->limits->rxFormSize);
-            }
-        }
         if (!rx->originalUri) {
             rx->originalUri = rx->uri;
         }
@@ -16962,6 +16952,21 @@ static int processParsed(HttpStream *stream)
             routeRequest(stream);
         } else {
             stream->readq->max = stream->limits->rxFormSize;
+        }
+
+        /*
+            Delay testing rxBodySize till after routing for streaming requests. This way, rxBodySize
+            can be defined per route.
+         */
+        if (!rx->upload) {
+            if (rx->length >= stream->limits->rxBodySize && stream->limits->rxBodySize != HTTP_UNLIMITED) {
+                httpLimitError(stream, HTTP_ABORT | HTTP_CODE_REQUEST_TOO_LARGE,
+                    "Request content length %lld bytes is too big. Limit %lld", rx->length, stream->limits->rxBodySize);
+            }
+            if (rx->form && rx->length >= stream->limits->rxFormSize && stream->limits->rxFormSize != HTTP_UNLIMITED) {
+                httpLimitError(stream, HTTP_CLOSE | HTTP_CODE_REQUEST_TOO_LARGE,
+                    "Request form of %lld bytes is too big. Limit %lld", rx->length, stream->limits->rxFormSize);
+            }
         }
     } else {
         /*
