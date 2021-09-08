@@ -23757,6 +23757,7 @@ PUBLIC int httpCreateEvent(uint64 seqno, HttpEventProc callback, void *data)
         Find the stream by "seqno" and then call createInvokeEvent() to create an MPR event.
      */
     if (httpFindStream(seqno, createInvokeEvent, invoke)) {
+        //  invokeWrapper will release
         return 0;
     }
     mprRelease(invoke);

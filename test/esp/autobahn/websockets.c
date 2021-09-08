@@ -80,7 +80,6 @@ static void echo_callback(HttpStream *stream, int event, int arg)
     if (event == HTTP_EVENT_READABLE) {
         packet = httpGetPacket(stream->readq);
         if (packet->type == WS_MSG_TEXT || packet->type == WS_MSG_BINARY) {
-            //  MOB zero hung
             httpSendBlock(stream, packet->type, httpGetPacketStart(packet), httpGetPacketLength(packet), HTTP_BUFFER);
         }
     }
@@ -187,7 +186,7 @@ static void manageMsg(Msg *msg, int flags)
     }
 }
 
-static void chat(Msg *msg)
+static void chat(Msg *msg, MprEvent *event)
 {
     HttpStream  *stream;
     HttpPacket  *packet;
@@ -215,9 +214,7 @@ static void chat_callback(HttpStream *stream, int event, int arg)
                 msg = mprAllocObj(Msg, manageMsg);
                 msg->stream = client;
                 msg->packet = packet;
-                //  MOB - httpCreateEvent
-                //  MOB - client needs to hold msg?
-                mprCreateEvent(client->dispatcher, "chat", 0, chat, msg, 0);
+                mprCreateLocalEvent(client->dispatcher, "chat", 0, chat, msg, 0);
             }
         }
     } else if (event == HTTP_EVENT_APP_CLOSE) {

@@ -67,6 +67,7 @@ static void chat_callback(HttpStream *stream, int event, int arg)
                     The data ("packet") is unmanaged.
                  */
                 char *msg = strdup(packet->content->start);
+                //  The client is the stream->seqno
                 httpCreateEvent(PTOL(client), (HttpEventProc) chat, msg);
             }
         }
