@@ -17871,6 +17871,10 @@ PUBLIC void httpServiceQueue(HttpQueue *q)
     if (q->net->serviceq->scheduleNext == q) {
         httpGetNextQueueForService(q->net->serviceq);
     }
+    if (q->nextQ == q) {
+        //  Q has been removed (unlinked)
+        return;
+    }
     if (q->flags & HTTP_QUEUE_SUSPENDED) {
         return;
     }
@@ -18147,6 +18151,7 @@ static void startRange(HttpQueue *q)
         The httpContentNotModified routine can set outputRanges to zero if returning not-modified.
      */
     if (tx->outputRanges == 0 || tx->status != HTTP_CODE_OK) {
+        httpTransferPackets(q, q->nextQ);
         httpRemoveQueue(q);
         tx->outputRanges = 0;
     } else {
