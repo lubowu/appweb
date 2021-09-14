@@ -682,16 +682,24 @@ PUBLIC void mprGlobalUnlock(void);
     Lock free primitives
  */
 
- /*
-     AtomicBarrier memory models
-  */
- #define MPR_ATOMIC_RELAXED      __ATOMIC_RELAXED
- #define MPR_ATOMIC_CONSUME      __ATOMIC_CONSUME
- #define MPR_ATOMIC_ACQUIRE      __ATOMIC_ACQUIRE
- #define MPR_ATOMIC_RELEASE      __ATOMIC_RELEASE
- #define MPR_ATOMIC_ACQ_REL      __ATOMIC_ACQ_REL
- #define MPR_ATOMIC_SEQUENTIAL   __ATOMIC_SEQ_CST
-
+/*
+    AtomicBarrier memory models
+*/
+#if ME_UNIX_LIKE
+    #define MPR_ATOMIC_RELAXED      __ATOMIC_RELAXED
+    #define MPR_ATOMIC_CONSUME      __ATOMIC_CONSUME
+    #define MPR_ATOMIC_ACQUIRE      __ATOMIC_ACQUIRE
+    #define MPR_ATOMIC_RELEASE      __ATOMIC_RELEASE
+    #define MPR_ATOMIC_ACQ_REL      __ATOMIC_ACQ_REL
+    #define MPR_ATOMIC_SEQUENTIAL   __ATOMIC_SEQ_CST
+#else
+    #define MPR_ATOMIC_RELAXED      0
+    #define MPR_ATOMIC_CONSUME      1
+    #define MPR_ATOMIC_ACQUIRE      2
+    #define MPR_ATOMIC_RELEASE      3
+    #define MPR_ATOMIC_ACQ_REL      4
+    #define MPR_ATOMIC_SEQUENTIAL   5
+#endif
 
 /**
     Open and initialize the atomic subystem

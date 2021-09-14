@@ -41,10 +41,10 @@ PUBLIC int maLoadModules(void)
 #if ME_COM_ESP
     rc += httpEspInit(HTTP, mprCreateModule("esp", NULL, NULL, HTTP));
 #endif
-#if ME_COM_FAST
+#if ME_COM_FAST && ME_UNIX_LIKE
     rc += httpFastInit(HTTP, mprCreateModule("fast", NULL, NULL, HTTP));
 #endif
-#if ME_COM_PROXY
+#if ME_COM_PROXY && ME_UNIX_LIKE
     rc += httpProxyInit(HTTP, mprCreateModule("cgi", NULL, NULL, HTTP));
 #endif
 #if ME_COM_TEST
