@@ -1,5 +1,5 @@
 /*
- * Embedthis MPR Library Source 9.0.1
+ * Embedthis MPR Library Source 9.0.2
  */
 
 #include "mpr.h"
@@ -17937,7 +17937,7 @@ PUBLIC char *mprGetAbsPath(cchar *path)
          */
         wchar buf[ME_MAX_PATH];
         GetFullPathName(wide(path), (sizeof(buf) / sizeof(wchar)) - 1, buf, NULL);
-        buf[((sizeof(buf) / sizeof(wchar)) - 1] = '\0';
+        buf[(sizeof(buf) / sizeof(wchar)) - 1] = '\0';
         result = mprNormalizePath(multi(buf));
 #elif VXWORKS
         if (hasDrive(fs, path)) {
@@ -22985,8 +22985,7 @@ PUBLIC ssize mprWriteSocketVector(MprSocket *sp, MprIOVec *iovec, int count)
 #endif
 #if ME_MPR_SOCKET_VECTOR_JOIN
     {
-        ssize   size;
-        int     offset;
+        ssize   size, offset;
         char    *buf;
 
         size = 0;
