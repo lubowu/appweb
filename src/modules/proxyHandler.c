@@ -639,7 +639,7 @@ static void transferProxyHeaders(HttpStream *proxyStream, HttpStream *stream)
 {
     MprKey      *kp;
     HttpUri     *loc, *uri;
-    cchar       *location;
+    cchar       *hval, *location;
 
     assert(stream);
     assert(proxyStream);
@@ -649,7 +649,15 @@ static void transferProxyHeaders(HttpStream *proxyStream, HttpStream *stream)
     for (ITERATE_KEYS(proxyStream->rx->headers, kp)) {
         httpSetHeaderString(stream, kp->key, kp->data);
     }
-    httpRemoveHeader(stream, "Connection");
+    /*
+        Remove Connection: Keep-Alive. Keep Connection: Close.
+    */
+    if ((hval = httpGetTxHeader(stream, "Connection")) != 0) {
+        httpRemoveHeader(stream, "Connection");
+        if (scaselesscontains(hval, "Close")) {
+            httpSetHeaderString(stream, "Connection", "Close");
+        }
+    }
     httpRemoveHeader(stream, "Keep-Alive");
     httpRemoveHeader(stream, "Content-Length");
     httpRemoveHeader(stream, "Transfer-Encoding");
@@ -692,6 +700,7 @@ static void transferClientHeaders(HttpStream *stream, HttpStream *proxyStream)
 {
     MprKey      *kp;
     HttpHost    *host;
+    cchar       *hval;
 
     assert(stream);
     assert(proxyStream);
@@ -701,7 +710,15 @@ static void transferClientHeaders(HttpStream *stream, HttpStream *proxyStream)
     for (ITERATE_KEYS(stream->rx->headers, kp)) {
         httpSetHeaderString(proxyStream, kp->key, kp->data);
     }
-    httpRemoveHeader(proxyStream, "Connection");
+    /*
+        Keep Connection: Upgrade
+    */
+    if ((hval = httpGetTxHeader(proxyStream, "Connection")) != 0) {
+        httpRemoveHeader(proxyStream, "Connection");
+        if (scaselesscontains(hval, "Upgrade")) {
+            httpSetHeaderString(proxyStream, "Connection", "Upgrade");
+        }
+    }
     httpRemoveHeader(proxyStream, "Content-Length");
     httpRemoveHeader(proxyStream, "Transfer-Encoding");
     httpSetHeaderString(proxyStream, "X-Client", stream->net->ip);

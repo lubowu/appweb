@@ -57,3 +57,4 @@ t.es
 *.dmp
 src/server/web/1*.txt
 test/debug.conf
+test/web/many
