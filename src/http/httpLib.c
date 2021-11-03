@@ -7828,6 +7828,9 @@ static void outgoingFileService(HttpQueue *q)
     ssize       size, nbytes;
 
     stream = q->stream;
+    if (stream->state >= HTTP_STATE_COMPLETE) {
+        return;
+    }
     rx = stream->rx;
     tx = stream->tx;
 
@@ -8879,14 +8882,16 @@ static void outgoingHttp1Service(HttpQueue *q)
 
     stream = q->stream;
     for (packet = httpGetPacket(q); packet; packet = httpGetPacket(q)) {
-        if (!httpWillQueueAcceptPacket(q, q->net->socketq, packet)) {
-            httpPutBackPacket(q, packet);
-            return;
+        if (stream->state < HTTP_STATE_COMPLETE) {
+            if (!httpWillQueueAcceptPacket(q, q->net->socketq, packet)) {
+                httpPutBackPacket(q, packet);
+                return;
+            }
+            /*
+                Mutliplex directly onto the net connector and not use q->nextQ
+             */
+            httpPutPacket(q->net->socketq, packet);
         }
-        /*
-            Mutliplex directly onto the net connector and not use q->nextQ
-         */
-        httpPutPacket(q->net->socketq, packet);
     }
     if (stream && q->count <= q->low && (stream->outputq->flags & HTTP_QUEUE_SUSPENDED)) {
         httpResumeQueue(stream->outputq, 0);
