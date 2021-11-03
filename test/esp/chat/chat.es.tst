@@ -1,5 +1,5 @@
 /*
-    wschat.tst - Stress test web sockets
+    chat.es.tst - Stress test web sockets
  */
 
 const HTTP = tget('TM_HTTP') || "127.0.0.1:4100"
@@ -32,6 +32,7 @@ ws.onclose = function () {
 }
 
 for (let i = 0; i < count; i++) {
+//print("SEND", i, count)
     ws.send("Hello WebSocket World: " + i)
     App.sleep(10)
 }
