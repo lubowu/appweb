@@ -7834,6 +7834,11 @@ static void outgoingFileService(HttpQueue *q)
     rx = stream->rx;
     tx = stream->tx;
 
+    if (!tx->file) {
+        /* File download has been aborted early and file has been closed */
+        return;
+    }
+
     /*
         The queue will contain a dummy entity packet which holds the position from which to read in the file.
         If the downstream queue is full, the data packet will be put onto the queue ahead of the entity packet.
