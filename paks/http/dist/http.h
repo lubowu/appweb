@@ -197,7 +197,7 @@ struct HttpWebSocket;
  */
 #ifndef ME_MAX_STREAMS
     #ifndef ME_MAX_REQUESTS_PER_CLIENT
-        #define ME_MAX_STREAMS      40                   /**< Default maximum concurrent streams per network */
+        #define ME_MAX_STREAMS      200                  /**< Default maximum concurrent streams per network */
     #else
         #define ME_MAX_STREAMS      ME_MAX_REQUESTS_PER_CLIENT
     #endif
