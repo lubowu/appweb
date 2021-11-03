@@ -17827,6 +17827,7 @@ PUBLIC void httpRemoveQueue(HttpQueue *q)
     q->prevQ->nextQ = q->nextQ;
     q->nextQ->prevQ = q->prevQ;
     q->prevQ = q->nextQ = q;
+    q->flags |= HTTP_QUEUE_REMOVED;
 }
 
 
@@ -17881,8 +17882,7 @@ PUBLIC void httpServiceQueue(HttpQueue *q)
     if (q->net->serviceq->scheduleNext == q) {
         httpGetNextQueueForService(q->net->serviceq);
     }
-    if (q->nextQ == q) {
-        //  Q has been removed (unlinked)
+    if (q->flags & HTTP_QUEUE_REMOVED) {
         return;
     }
     if (q->flags & HTTP_QUEUE_SUSPENDED) {

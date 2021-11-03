@@ -2179,6 +2179,7 @@ PUBLIC HttpPacket *httpSplitPacket(HttpPacket *packet, ssize offset);
 #define HTTP_QUEUE_OUTGOING       0x200     /**< Queue is for outgoing traffic */
 #define HTTP_QUEUE_REQUEST        0x400     /**< Queue is specific for this request */
 #define HTTP_QUEUE_HEAD           0x800     /**< Queue header */
+#define HTTP_QUEUE_REMOVED        0x1000    /**< Queue removed from pipeline */
 
 /*
     Queue optimizations
