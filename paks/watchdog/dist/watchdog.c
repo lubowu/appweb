@@ -610,7 +610,7 @@ static void runService(void)
         if (app->servicePid == 0) {
             if (app->restartCount >= app->retries) {
                 if (! app->restartWarned) {
-                    mprLog("error watchdog", 0, "Too many restarts for %s, %d in last hour", 
+                    mprLog("error watchdog", 0, "Too many restarts for %s, %d in last hour",
                         app->serviceProgram, app->restartCount);
                     mprLog("error watchdog", 0, "Suspending restarts for one minute");
                     app->restartWarned++;
@@ -622,7 +622,7 @@ static void runService(void)
             /*
                 Create the child
              */
-            app->servicePid = vfork();
+            app->servicePid = fork();
             if (app->servicePid < 0) {
                 mprLog("error watchdog", 0, "Cannot fork new process to run %s", app->serviceProgram);
                 continue;
