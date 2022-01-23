@@ -16551,6 +16551,7 @@ PUBLIC void httpSetState(HttpStream *stream, int targetState)
         processComplete(stream, NULL);
 
     } else if (stream->tx->started) {
+        httpServiceNetQueues(net, HTTP_BLOCK);
         httpPumpOutput(stream->inputq);
     }
     if (net->protocol < 2 && net->eventMask == 0 && !net->active) {
@@ -17031,7 +17032,7 @@ static int processReady(HttpStream *stream)
         }
     }
     //  Ensure incomingService can receive data before ready event if not streaming
-    httpServiceNetQueues(stream->net, 0);
+    httpServiceNetQueues(stream->net, HTTP_BLOCK);
 
     httpReadyHandler(stream);
     if (httpClientStream(stream) && !stream->upgraded) {
