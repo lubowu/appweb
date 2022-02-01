@@ -17181,6 +17181,7 @@ static int prepErrorDoc(HttpStream *stream)
     stream->rx->uri = (char*) tx->errorDocument;
     stream->tx->status = tx->status;
     stream->state = HTTP_STATE_PARSED;
+    stream->errorDoc = 1;
     return processParsed(stream);
 }
 
@@ -17861,14 +17862,15 @@ PUBLIC void httpScheduleQueue(HttpQueue *q)
 
 PUBLIC void httpServiceQueue(HttpQueue *q)
 {
-    /*
-        Hold the queue for GC while scheduling.
-        Not typically required as the queue is typically linked into a pipeline.
-     */
     if (q->servicing) {
         q->flags |= HTTP_QUEUE_RESERVICE;
         return;
     }
+
+    /*
+        Hold the queue for GC while scheduling.
+        Not typically required as the queue is typically linked into a pipeline.
+     */
     if (q->net) {
         q->net->holdq = q;
     }
@@ -23306,7 +23308,6 @@ static void manageStream(HttpStream *stream, int flags)
 
 /*
     Prepare for another request for server
-    Return true if there is another request ready for serving
  */
 PUBLIC void httpResetServerStream(HttpStream *stream)
 {
