@@ -16551,7 +16551,6 @@ PUBLIC void httpSetState(HttpStream *stream, int targetState)
         processComplete(stream, NULL);
 
     } else if (stream->tx->started) {
-        httpServiceNetQueues(net, HTTP_BLOCK);
         httpPumpOutput(stream->inputq);
     }
     if (net->protocol < 2 && net->eventMask == 0 && !net->active) {
@@ -17032,7 +17031,8 @@ static int processReady(HttpStream *stream)
         }
     }
     //  Ensure incomingService can receive data before ready event if not streaming
-    httpServiceNetQueues(stream->net, HTTP_BLOCK);
+    //  Do not yield as this may come from httpFinalizeInput and callers may not expect it to yield
+    httpServiceNetQueues(stream->net, HTTP_CURRENT);
 
     httpReadyHandler(stream);
     if (httpClientStream(stream) && !stream->upgraded) {
@@ -17140,8 +17140,8 @@ PUBLIC bool httpPumpOutput(HttpQueue *q)
     stream = q->stream;
     tx = stream->tx;
 
-    //  Cannot use HTTP_BLOCK because httpConnect and others need to be able to call without yielding
-    httpServiceNetQueues(q->net, 0);
+    //  Cannot use HTTP_BLOCK because httpConnect and other client code needs to be able to call without yielding
+    httpServiceNetQueues(q->net, HTTP_CURRENT);
 
     if (tx->started && !stream->net->writeBlocked) {
         wq = stream->writeq;
@@ -17908,7 +17908,9 @@ PUBLIC void httpServiceQueues(HttpStream *stream, int flags)
  */
 PUBLIC void httpServiceNetQueues(HttpNet *net, int flags)
 {
-    HttpQueue   *q;
+    HttpQueue   *q, *lastq;
+
+    lastq = net->serviceq->schedulePrev;
 
     while ((q = httpGetNextQueueForService(net->serviceq)) != NULL) {
         /*
@@ -17919,6 +17921,13 @@ PUBLIC void httpServiceNetQueues(HttpNet *net, int flags)
             httpServiceQueue(q);
         }
         if ((flags & HTTP_BLOCK) && mprNeedYield()) mprYield(0);
+
+        /*
+            Stop servicing if all queues that were scheduled at the start of the call have been serviced.
+        */
+        if (0 && (flags & HTTP_CURRENT) && q == lastq) {
+            break;
+        }
     }
     /*
         Always do a yield if requested even if there are no queues to service

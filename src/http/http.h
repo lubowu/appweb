@@ -2597,6 +2597,7 @@ PUBLIC ssize httpWrite(HttpQueue *q, cchar *fmt, ...) PRINTF_ATTRIBUTE(2,3);
 #define HTTP_BLOCK      0x1    /**< Flag for httpSendBlock and httpWriteBlock to indicate blocking operation */
 #define HTTP_NON_BLOCK  0x2    /**< Flag for httpSendBlock and httpWriteBlock to indicate non-blocking operation */
 #define HTTP_BUFFER     0x4    /**< Flag for httpSendBlock and httpWriteBlock to always absorb the data without blocking */
+#define HTTP_CURRENT    0x8    /**< Flag to service current queued events only */
 
 /**
     Write a block of data to the queue
