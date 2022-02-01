@@ -237,6 +237,7 @@ static void browserToCgiData(HttpQueue *q, HttpPacket *packet)
 
     assert(q);
     assert(packet);
+
     if ((cgi = q->queueData) == 0) {
         return;
     }
