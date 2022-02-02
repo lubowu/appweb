@@ -1,5 +1,5 @@
 /*
- * Embedthis Http Library Source 9.0.2
+ * Embedthis Http Library Source 9.0.4
  */
 
 #include "http.h"
@@ -9608,9 +9608,6 @@ static void incomingHttp2(HttpQueue *q, HttpPacket *packet)
             net->frame = 0;
             stream = frame->stream;
             if (stream && !stream->destroyed) {
-                if (stream->rx->endStream) {
-                    httpAddInputEndPacket(stream, stream->inputq);
-                }
                 if (stream->disconnect) {
                     sendReset(q, stream, HTTP2_INTERNAL_ERROR, "Stream request error %s", stream->errorMsg);
                 }
@@ -10240,6 +10237,9 @@ static void parseHeaders2(HttpQueue *q, HttpStream *stream)
             sendGoAway(q, HTTP2_PROTOCOL_ERROR, "Missing :method, :path or :scheme in request headers");
             return;
         }
+    }
+    if (stream->rx->endStream) {
+        httpAddInputEndPacket(stream, stream->inputq);
     }
     if (!net->sentGoaway) {
         rx->protocol = sclone("HTTP/2.0");
@@ -29620,3 +29620,4 @@ bool httpIsLastPacket(HttpPacket *packet)
     This software is distributed under a commercial license. Consult the LICENSE.md
     distributed with this software for full details and copyrights.
  */
+
