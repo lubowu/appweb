@@ -12,20 +12,20 @@
 <H2>SYNOPSIS</H2><PRE>
        <B>makerom</B> <B>[options]</B> <B>files</B> <B>...</B> <B>&gt;;output.c</B>
 
-       [<I>--files</I>  <I>fileList</I>] [<I>--name</I> <I>struct-name</I>] [<I>--mount</I> <I>mount-point</I>] [<I>--strip</I>
+       [<I>--files</I> <I>fileList</I>] [<I>--name</I> <I>struct-name</I>] [<I>--mount</I> <I>mount-point</I>] [<I>--strip</I>
        <I>strip</I>]
 
 
 </PRE>
 <H2>DESCRIPTION</H2><PRE>
-       To enable files to be accessed on embedded systems without a file  sys-
-       tem,  the <B>makerom</B> command converts arbitrary files into C code that can
-       be compiled and linked into a program. This is useful for  applications
-       that  must  execute  completely  from ROM and not access a file system.
-       This facility can also enhance security by preventing the  modification
-       of files.
+       To enable files to be accessed on embedded systems without a file system,
+       the <B>makerom</B> command converts arbitrary files into C code that can be
+       compiled and linked into a program. This is useful for applications that
+       must execute completely from ROM and not access a file system.  This
+       facility can also enhance security by preventing the modification of
+       files.
 
-       The  MPR  portable  runtime provides routines which can then read these
+       The MPR portable runtime provides routines which can then read these
        files much as you would read any file on disk.
 
 
@@ -35,23 +35,22 @@
               Option to provide a list of files that should be converted.
 
        <B>--p</B> <B>mount</B>
-              Specifies a mount point for the rom file system.  This  defaults
-              to /rom.
+              Specifies a mount point for the rom file system. This defaults to
+              /rom.
 
        <B>--name</B> <B>structName</B>
-              Specifies  the name of top level C structure that holds the con-
-              verted files.
+              Specifies the name of top level C structure that holds the
+              converted files.
 
        <B>--p</B> <B>strip</B>
               Specifies a filename prefix to strip from the start of each file
               name.
 
 
-
 </PRE>
 <H2>EXAMPLE</H2><PRE>
-       This  example  will  create  a list of web files and then convert these
-       files into C structures in the file romFiles.c.
+       This example will create a list of web files and then convert these files
+       into C structures in the file romFiles.c.
 
 
            find web -type f -print &gt;;fileList
@@ -69,7 +68,8 @@
 
 </PRE>
 <H2>COPYRIGHT</H2><PRE>
-       Copyright (C) Embedthis Software.
+       Copyright © Embedthis Software.
+
 
 </PRE>
 <HR>

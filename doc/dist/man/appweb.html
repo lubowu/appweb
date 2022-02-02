@@ -31,59 +31,58 @@
 
 </PRE>
 <H2>DESCRIPTION</H2><PRE>
-       Appweb  is  a  compact  embedded HTTP web server.  It is a fast, small-
-       footprint, multi-threaded, standards-based, portable  server  developed
-       for  use  by embedded devices and applications.  It can run as a stand-
-       alone web server or the Appweb library can be embedded in applications.
+       Appweb is a compact embedded HTTP web server.  It is a fast, small-
+       footprint, multi-threaded, standards-based, portable server developed for
+       use by embedded devices and applications.  It can run as a stand-alone
+       web server or the Appweb library can be embedded in applications.
 
        Appweb supports HTTP/1.1, HTTP/2, SSL, digest and basic authentication,
-       virtual hosting, ranged requests, chunked transfers, file upload,  CGI,
-       FastCGI, Proxy and security limits.  Appweb has an Apache style config-
-       uration file and supports the ESP and PHP web frameworks.
+       virtual hosting, ranged requests, chunked transfers, file upload, CGI,
+       FastCGI, Proxy and security limits.  Appweb has an Apache style
+       configuration file and supports the ESP and PHP web frameworks.
 
-       Appweb normally reads the <B>appweb.conf</B>  file  for  configuration  direc-
-       tives.  However, if appweb is invoked with an IP address or port number
-       on the command line, Appweb  will  not  read  the  configuration  file.
-       Rather it will listen for requests on the specified IP:PORT address. If
-       the PORT component is omitted, Appweb will listen on port 80. If the IP
-       address  is  omitted  and a port is supplied, Appweb will listen on all
-       network interfaces.
+       Appweb normally reads the <B>appweb.conf</B> file for configuration directives.
+       However, if appweb is invoked with an IP address or port number on the
+       command line, Appweb will not read the configuration file. Rather it will
+       listen for requests on the specified IP:PORT address. If the PORT
+       component is omitted, Appweb will listen on port 80. If the IP address is
+       omitted and a port is supplied, Appweb will listen on all network
+       interfaces.
 
-       Appweb responds to the SIGUSR2 signal and toggles the trace level  from
-       2 to 4 and vice-versa. Appweb responds to the SIGINFO|SIGPWR signal and
+       Appweb responds to the SIGUSR2 signal and toggles the trace level from 2
+       to 4 and vice-versa. Appweb responds to the SIGINFO|SIGPWR signal and
        emits operational stats to the trace log.
 
 
 </PRE>
 <H2>OPTIONS</H2><PRE>
        <B>--config</B> <B>filename</B>
-              Define the name of the Appweb configuration  file.  This  is  by
+              Define the name of the Appweb configuration file. This is by
               default <B>appweb</B>.
 
        <B>--chroot</B> <B>directory</B>
-              Change  the  system  root  directory  for Appweb. This creates a
-              chroot jail so that the Appweb process cannot access  any  files
-              outside the given directory.
-
+              Change the system root directory for Appweb. This creates a chroot
+              jail so that the Appweb process cannot access any files outside
+              the given directory.
 
        <B>--log</B> <B>logSpec</B>
-              Name the Appweb log file. This will override the ErrorLog direc-
-              tive in the configuration file. The syntax is:
+              Name the Appweb log file. This will override the ErrorLog
+              directive in the configuration file. The syntax is:
 
               --log logName[:logLevel]
 
        <B>--name</B> <B>NAME</B>
-              Define a unique name for this instance of Appweb. Useful for  ps
+              Define a unique name for this instance of Appweb. Useful for ps
               -ef listings.
 
        <B>--trace</B> <B>traceSpec</B>
-              Name  the  Appweb  request  trace  file.  This will override the
+              Name the Appweb request trace file. This will override the
               TraceLog directive in the configuration file.  The syntax is:
 
               --trace traceName[:traceLevel]
 
        <B>--verbose</B>
-              Shorthand for --log stdout:4. The <B>-v</B>  option  is  an  alias  for
+              Shorthand for --log stdout:4. The <B>-v</B> option is an alias for
               --verbose.
 
        <B>--version</B>
@@ -91,7 +90,6 @@
 
        <B>--DIGIT</B>
               Shorthand for --log stdout:DIGIT --trace stdout:DIGIT.
-
 
 
 </PRE>
@@ -109,7 +107,7 @@
 
 </PRE>
 <H2>COPYRIGHT</H2><PRE>
-       Copyright (C) Embedthis Software.
+       Copyright © Embedthis Software.
 
 
 </PRE>
@@ -118,7 +116,7 @@
 
 
 
-appweb                            March 2014                         <B>APPWEB(1)</B>
+appweb                             March 2014                          <B>APPWEB(1)</B>
 </PRE>
 <HR>
 <ADDRESS>

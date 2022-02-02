@@ -10,23 +10,23 @@
 
 </PRE>
 <H2>SYNOPSIS</H2><PRE>
-       <B>authpass</B>  [<I>--cipher</I>  <I>blowfish|md5</I>]  [<I>--file</I> <I>filename</I>] [<I>--password</I> <I>pass-</I>
-       <I>word</I>] realm username roles...
+       <B>authpass</B> [<I>--cipher</I> <I>blowfish|md5</I>] [<I>--file</I> <I>filename</I>] [<I>--password</I> <I>password</I>]
+       realm username roles...
 
 
 
 </PRE>
 <H2>DESCRIPTION</H2><PRE>
-       The authpass program creates authentication passwords  for  Appweb.  It
-       should  be used to create passwords for the "config" or "app" authenti-
-       cation stores. If using the  "config"  authentication  store,  use  the
-       "--file" option to specify the name of the password file.
+       The authpass program creates authentication passwords for Appweb. It
+       should be used to create passwords for the "config" or "app"
+       authentication stores. If using the "config" authentication store, use
+       the "--file" option to specify the name of the password file.
 
-            authpass  --file  auth.conf  --password  pass1  example.com joshua
+            authpass --file auth.conf --password pass1 example.com joshua
             administrator buyer
 
-       If using the "app" authentication store, omit the "--file"  option  and
-       the password will be displayed to the standard output.
+       If using the "app" authentication store, omit the "--file" option and the
+       password will be displayed to the standard output.
 
             authpass --password pass1 example.com joshua administrator buyer
 
@@ -35,9 +35,9 @@
 </PRE>
 <H2>OPTIONS</H2><PRE>
        <B>--cipher</B> <B>blowfish|md5</B>
-              Specifies  the  cipher  to  use to hash the password. Default is
-              blowfish. Blowfish is substantially more secure.   MD5  must  be
-              used for digest authentication.
+              Specifies the cipher to use to hash the password. Default is
+              blowfish. Blowfish is substantially more secure.  MD5 must be used
+              for digest authentication.
 
        <B>--password</B> <B>password</B>
               Specifies a password to use to for the user.
@@ -46,12 +46,11 @@
               Update the specified password configuration file.
 
 
-
 </PRE>
 <H2>DESCRIPTION</H2><PRE>
-       The authpass program is used to create and manage user passwords.  App-
-       web uses the same authorization file and format for Basic,  Digest  and
-       Post authentication stores. This simplifies administration.
+       The authpass program is used to create and manage user passwords.  Appweb
+       uses the same authorization file and format for Basic, Digest and Post
+       authentication stores. This simplifies administration.
 
 
 </PRE>
@@ -61,12 +60,15 @@
 
 </PRE>
 <H2>COPYRIGHT</H2><PRE>
-       Copyright (C) Embedthis Software.
+       Copyright © Embedthis Software.
 
 
 </PRE>
 <H2>SEE ALSO</H2><PRE>
-auth                             February 2014                         <B>AUTH(1)</B>
+
+
+
+auth                              February 2014                          <B>AUTH(1)</B>
 </PRE>
 <HR>
 <ADDRESS>

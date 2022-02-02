@@ -1214,6 +1214,10 @@
 </tr>
 <tr class="apiBrief"><td>&nbsp;</td><td>Must create env for this request.</td></tr>
 <tr class="apiDef">
+<td>#define</td><td><a href="#http_8h_1a7d14c04cae3cacf24975eef13ff2dad9" class="nameRef">HTTP_CURRENT</a>&nbsp;&nbsp;&nbsp;0x8</td>
+</tr>
+<tr class="apiBrief"><td>&nbsp;</td><td>Flag to service current queued events only.</td></tr>
+<tr class="apiDef">
 <td>#define</td><td><a href="#http_8h_1ac706e99193bc479c8e9127ebbf8bb42f" class="nameRef">HTTP_DELAY_SERVICE</a>&nbsp;&nbsp;&nbsp;0</td>
 </tr>
 <tr class="apiBrief"><td>&nbsp;</td><td>Delay servicing the queue.</td></tr>
@@ -1417,6 +1421,10 @@
 <td>#define</td><td><a href="#http_8h_1a59d9b82c1359a2c13ae4673708ddc22c" class="nameRef">HTTP_QUEUE_READY</a>&nbsp;&nbsp;&nbsp;0x80</td>
 </tr>
 <tr class="apiBrief"><td>&nbsp;</td><td>Handler stage ready routine called.</td></tr>
+<tr class="apiDef">
+<td>#define</td><td><a href="#http_8h_1a3c782475437b5f40540f1e7cdc933701" class="nameRef">HTTP_QUEUE_REMOVED</a>&nbsp;&nbsp;&nbsp;0x1000</td>
+</tr>
+<tr class="apiBrief"><td>&nbsp;</td><td>Queue removed from pipeline.</td></tr>
 <tr class="apiDef">
 <td>#define</td><td><a href="#http_8h_1aa47e55fe4beeb6d15d23fb79d322d9b1" class="nameRef">HTTP_QUEUE_REQUEST</a>&nbsp;&nbsp;&nbsp;0x400</td>
 </tr>
@@ -1866,7 +1874,7 @@
 </tr>
 <tr class="apiBrief"><td>&nbsp;</td><td>Maximum concurrent sessions.</td></tr>
 <tr class="apiDef">
-<td>#define</td><td><a href="#http_8h_1ac0889e3c56d121776612ccd91c5c24e4" class="nameRef">ME_MAX_STREAMS</a>&nbsp;&nbsp;&nbsp;40</td>
+<td>#define</td><td><a href="#http_8h_1ac0889e3c56d121776612ccd91c5c24e4" class="nameRef">ME_MAX_STREAMS</a>&nbsp;&nbsp;&nbsp;200</td>
 </tr>
 <tr class="apiBrief"><td>&nbsp;</td><td>Default maximum concurrent streams per network.</td></tr>
 <tr class="apiDef">

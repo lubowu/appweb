@@ -1,5 +1,5 @@
 /*
- * Embedthis Http Library Source 9.0.2
+ * Embedthis Http Library Source 9.0.4
  */
 
 #include "http.h"
@@ -8882,16 +8882,14 @@ static void outgoingHttp1Service(HttpQueue *q)
 
     stream = q->stream;
     for (packet = httpGetPacket(q); packet; packet = httpGetPacket(q)) {
-        if (stream->state < HTTP_STATE_COMPLETE) {
-            if (!httpWillQueueAcceptPacket(q, q->net->socketq, packet)) {
-                httpPutBackPacket(q, packet);
-                return;
-            }
-            /*
-                Mutliplex directly onto the net connector and not use q->nextQ
-             */
-            httpPutPacket(q->net->socketq, packet);
+        if (!httpWillQueueAcceptPacket(q, q->net->socketq, packet)) {
+            httpPutBackPacket(q, packet);
+            return;
         }
+        /*
+            Mutliplex directly onto the net connector and not use q->nextQ
+         */
+        httpPutPacket(q->net->socketq, packet);
     }
     if (stream && q->count <= q->low && (stream->outputq->flags & HTTP_QUEUE_SUSPENDED)) {
         httpResumeQueue(stream->outputq, 0);
@@ -9610,9 +9608,6 @@ static void incomingHttp2(HttpQueue *q, HttpPacket *packet)
             net->frame = 0;
             stream = frame->stream;
             if (stream && !stream->destroyed) {
-                if (stream->rx->endStream) {
-                    httpAddInputEndPacket(stream, stream->inputq);
-                }
                 if (stream->disconnect) {
                     sendReset(q, stream, HTTP2_INTERNAL_ERROR, "Stream request error %s", stream->errorMsg);
                 }
@@ -10242,6 +10237,9 @@ static void parseHeaders2(HttpQueue *q, HttpStream *stream)
             sendGoAway(q, HTTP2_PROTOCOL_ERROR, "Missing :method, :path or :scheme in request headers");
             return;
         }
+    }
+    if (stream->rx->endStream) {
+        httpAddInputEndPacket(stream, stream->inputq);
     }
     if (!net->sentGoaway) {
         rx->protocol = sclone("HTTP/2.0");
@@ -16509,9 +16507,7 @@ static int updateState(HttpStream *stream, int newState)
 
     state = stream->state;
 
-    if (newState < state && stream->errorDoc) {
-        state = newState;
-    } else if (newState > state) {
+    if (newState > state) {
         state = newState;
     } else {
         state = state + 1;
@@ -23317,10 +23313,6 @@ PUBLIC void httpResetServerStream(HttpStream *stream)
     if (stream->net->borrowed) {
         return;
     }
-    if (stream->keepAliveCount <= 0) {
-        stream->state = HTTP_STATE_BEGIN;
-        return;
-    }
     HTTP_NOTIFY(stream, HTTP_EVENT_DESTROY, 0);
 
     if (stream->tx) {
@@ -23460,7 +23452,7 @@ PUBLIC void httpDisconnectStream(HttpStream *stream)
         httpSetEof(stream);
     }
     if (stream->net->protocol < 2) {
-        mprDisconnectSocket(stream->sock);
+        stream->net->error = 1;
     }
 }
 

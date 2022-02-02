@@ -17,19 +17,19 @@
 
 </PRE>
 <H2>DESCRIPTION</H2><PRE>
-       The appman program is used to configure the running of Appweb as a sys-
-       tem  service  (daemon).  Appman provides a generic way to install/unin-
-       stall, enable/disable, start/stop, and run the Appweb service,  regard-
-       less of the operating system. When used to run Appweb, it starts Appweb
-       and then watches over Appweb, to restart it should Appweb fail.  Appman
-       also  provides  general  management commands to enable, disable, start,
-       and stop appweb.
+       The appman program is used to configure the running of Appweb as a system
+       service (daemon).  Appman provides a generic way to install/uninstall,
+       enable/disable, start/stop, and run the Appweb service, regardless of the
+       operating system. When used to run Appweb, it starts Appweb and then
+       watches over Appweb, to restart it should Appweb fail. Appman also
+       provides general management commands to enable, disable, start, and stop
+       appweb.
 
 
 </PRE>
 <H2>COMMANDS</H2><PRE>
        <B>disable</B>
-              Disable Appweb from automatically starting when  the  system  is
+              Disable Appweb from automatically starting when the system is
               booted.
 
        <B>enable</B> Enable Appweb to start automatically on system boot.
@@ -37,8 +37,8 @@
        <B>install</B>
               Install Appweb as a service.
 
-       <B>run</B>    Run  Appweb and monitor its execution. Appman will automatically
-              restart Appweb should it fail. Appman will block  unless  it  is
+       <B>run</B>    Run Appweb and monitor its execution. Appman will automatically
+              restart Appweb should it fail. Appman will block unless it is
               invoked with --daemon.
 
        <B>start</B>  Start Appweb manually.
@@ -52,7 +52,7 @@
 </PRE>
 <H2>OPTIONS</H2><PRE>
        <B>--args</B> <B>arguments</B>
-              Arguments  to  use  for the service program command line when it
+              Arguments to use for the service program command line when it
               starts.
 
        <B>--console</B>
@@ -60,16 +60,15 @@
               with the users desktop.
 
        <B>--daemon</B>
-              Run  the manager as a daemon process. This causes the manager to
+              Run the manager as a daemon process. This causes the manager to
               detach from the current shell and run in the background.
 
        <B>--heartBeat</B> <B>interval</B>
-              Windows specific option to set the frequency in seconds for  the
+              Windows specific option to set the frequency in seconds for the
               manager to check on service.  This period should be short enough
-              that the service will be quickly restarted should it  fail,  but
+              that the service will be quickly restarted should it fail, but not
 
        <B>-v</B>     Output the product version number.
-
 
 
 </PRE>
@@ -79,7 +78,7 @@
 
 </PRE>
 <H2>COPYRIGHT</H2><PRE>
-       Copyright (C) Embedthis Software.
+       Copyright © Embedthis Software.
 
 
 </PRE>
@@ -88,7 +87,7 @@
 
 
 
-appman                           November 2014                       <B>APPMAN(1)</B>
+appman                            November 2014                        <B>APPMAN(1)</B>
 </PRE>
 <HR>
 <ADDRESS>
