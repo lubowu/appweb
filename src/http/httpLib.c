@@ -8882,16 +8882,14 @@ static void outgoingHttp1Service(HttpQueue *q)
 
     stream = q->stream;
     for (packet = httpGetPacket(q); packet; packet = httpGetPacket(q)) {
-        if (stream->state < HTTP_STATE_COMPLETE) {
-            if (!httpWillQueueAcceptPacket(q, q->net->socketq, packet)) {
-                httpPutBackPacket(q, packet);
-                return;
-            }
-            /*
-                Mutliplex directly onto the net connector and not use q->nextQ
-             */
-            httpPutPacket(q->net->socketq, packet);
+        if (!httpWillQueueAcceptPacket(q, q->net->socketq, packet)) {
+            httpPutBackPacket(q, packet);
+            return;
         }
+        /*
+            Mutliplex directly onto the net connector and not use q->nextQ
+         */
+        httpPutPacket(q->net->socketq, packet);
     }
     if (stream && q->count <= q->low && (stream->outputq->flags & HTTP_QUEUE_SUSPENDED)) {
         httpResumeQueue(stream->outputq, 0);
@@ -16509,9 +16507,7 @@ static int updateState(HttpStream *stream, int newState)
 
     state = stream->state;
 
-    if (newState < state && stream->errorDoc) {
-        state = newState;
-    } else if (newState > state) {
+    if (newState > state) {
         state = newState;
     } else {
         state = state + 1;
@@ -17927,7 +17923,7 @@ PUBLIC void httpServiceNetQueues(HttpNet *net, int flags)
         /*
             Stop servicing if all queues that were scheduled at the start of the call have been serviced.
         */
-        if (0 && (flags & HTTP_CURRENT) && q == lastq) {
+        if ((flags & HTTP_CURRENT) && q == lastq) {
             break;
         }
     }
@@ -23317,10 +23313,6 @@ PUBLIC void httpResetServerStream(HttpStream *stream)
     if (stream->net->borrowed) {
         return;
     }
-    if (stream->keepAliveCount <= 0) {
-        stream->state = HTTP_STATE_BEGIN;
-        return;
-    }
     HTTP_NOTIFY(stream, HTTP_EVENT_DESTROY, 0);
 
     if (stream->tx) {
@@ -23460,7 +23452,7 @@ PUBLIC void httpDisconnectStream(HttpStream *stream)
         httpSetEof(stream);
     }
     if (stream->net->protocol < 2) {
-        mprDisconnectSocket(stream->sock);
+        stream->net->error = 1;
     }
 }
 
@@ -29628,4 +29620,3 @@ bool httpIsLastPacket(HttpPacket *packet)
     This software is distributed under a commercial license. Consult the LICENSE.md
     distributed with this software for full details and copyrights.
  */
-
