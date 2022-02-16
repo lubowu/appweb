@@ -22079,51 +22079,29 @@ PUBLIC cchar *httpGetCookies(HttpStream *stream)
 PUBLIC cchar *httpGetCookie(HttpStream *stream, cchar *name)
 {
     HttpRx  *rx;
-    cchar   *cookie;
-    char    *cp, *value;
-    ssize   nlen;
-    int     quoted;
+    char    *buf, *cookie, *end, *key, *tok, *value;
 
     assert(stream);
     rx = stream->rx;
     assert(rx);
 
-    if ((cookie = rx->cookie) == 0 || name == 0 || *name == '\0') {
+    if (rx->cookie == 0 || name == 0 || *name == '\0') {
         return 0;
     }
-    nlen = slen(name);
-    while ((value = strstr(cookie, name)) != 0) {
-        /* Ignore corrupt cookies of the form "name=;" */
-        if ((value == rx->cookie || value[-1] == ' ' || value[-1] == ';') && value[nlen] == '=' && value[nlen+1] != ';') {
-            break;
-        }
-        cookie += (value - cookie) + nlen;
+    buf = sclone(rx->cookie);
+    end = &buf[slen(buf)];
+    value = 0;
 
+    for (tok = buf; tok < end; ) {
+         cookie = stok(tok, ";", &tok);
+         key = stok(cookie, "=", &value);
+         if (smatch(key, name)) {
+             // Remove leading spaces first, then double quotes. Spaces inside double quotes preserved.
+             value = sclone(strim(strim(value, " ", MPR_TRIM_BOTH), "\"", MPR_TRIM_BOTH));
+             break;
+         }
     }
-    if (value == 0) {
-        return 0;
-    }
-    value += nlen;
-    while (isspace((uchar) *value) || *value == '=') {
-        value++;
-    }
-    quoted = 0;
-    if (*value == '"') {
-        value++;
-        quoted++;
-    }
-    for (cp = value; *cp; cp++) {
-        if (quoted) {
-            if (*cp == '"' && cp[-1] != '\\') {
-                break;
-            }
-        } else {
-            if ((*cp == ',' || *cp == ';') && cp[-1] != '\\') {
-                break;
-            }
-        }
-    }
-    return snclone(value, cp - value);
+    return value;
 }
 
 
@@ -29628,3 +29606,4 @@ bool httpIsLastPacket(HttpPacket *packet)
     This software is distributed under a commercial license. Consult the LICENSE.md
     distributed with this software for full details and copyrights.
  */
+
