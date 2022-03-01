@@ -26034,6 +26034,7 @@ typedef struct Upload {
     char            *boundary;          /* Boundary signature */
     ssize           boundaryLen;        /* Length of boundary */
     int             contentState;       /* Input states */
+    int             inBody;             /* Started parsing body */
     char            *clientFilename;    /* Current file filename (optional) */
     char            *contentType;       /* Content type for next item */
     char            *tmpPath;           /* Current temp filename for upload data */
@@ -26252,6 +26253,10 @@ static void incomingUploadService(HttpQueue *q)
                 if (mprGetBufLength(content) >= 2) {
                     mprAdjustBufStart(content, 2);
                 }
+                if (mprGetBufLength(content)) {
+                    //  Discard epilog
+                    mprAdjustBufStart(content, mprGetBufLength(content));
+                }
                 done++;
                 break;
             }
@@ -26311,17 +26316,22 @@ static int processUploadBoundary(HttpQueue *q, char *line)
     up = q->queueData;
 
     /*
-        Expecting a multipart boundary string
+        Expecting a preamble or multipart boundary string
      */
     if (strncmp(up->boundary, line, up->boundaryLen) != 0) {
-        httpError(stream, HTTP_CODE_BAD_REQUEST, "Bad upload state. Incomplete boundary");
-        return MPR_ERR_BAD_STATE;
+        if (up->inBody) {
+            httpError(stream, HTTP_CODE_BAD_REQUEST, "Bad upload state. Incomplete boundary");
+            return MPR_ERR_BAD_STATE;
+        }
+        //  Just eat the line as it may be preamble.
+        return 0;
     }
     if (line[up->boundaryLen] && strcmp(&line[up->boundaryLen], "--") == 0) {
         up->contentState = HTTP_UPLOAD_CONTENT_END;
     } else {
         up->contentState = HTTP_UPLOAD_CONTENT_HEADER;
     }
+    up->inBody = 1;
     return 0;
 }
 
