@@ -2834,11 +2834,6 @@ static void incomingChunk(HttpQueue *q, HttpPacket *packet)
     rx = stream->rx;
     len = httpGetPacketLength(packet);
 
-    if (!httpWillNextQueueAcceptPacket(q, packet)) {
-        httpPutBackPacket(q, packet);
-        return;
-    }
-
     if (rx->chunkState == HTTP_CHUNK_UNCHUNKED) {
         if (rx->remainingContent > 0) {
             nbytes = min(rx->remainingContent, httpGetPacketLength(packet));
@@ -8858,6 +8853,7 @@ static void incomingHttp1(HttpQueue *q, HttpPacket *packet)
         if (packet) {
             if (!httpWillQueueAcceptPacket(q, stream->inputq, packet)) {
                 httpPutBackPacket(q, packet);
+                //  Re-enabled in tailFilter
                 break;
             }
             httpPutPacket(stream->inputq, packet);
@@ -17734,6 +17730,7 @@ PUBLIC bool httpResumeQueue(HttpQueue *q, bool schedule)
 PUBLIC HttpQueue *httpFindNextQueue(HttpQueue *q)
 {
     for (q = q->nextQ; q; q = q->nextQ) {
+        //  FUTURE - should really be service && count
         if (q->service || q->count) {
             return q;
         }
@@ -17745,9 +17742,13 @@ PUBLIC HttpQueue *httpFindNextQueue(HttpQueue *q)
 }
 
 
+/*
+    Find previous queue that has buffered data
+*/
 PUBLIC HttpQueue *httpFindPreviousQueue(HttpQueue *q)
 {
     for (q = q->prevQ; q; q = q->prevQ) {
+        //  FUTURE - should really be service && count
         if (q->service || q->count) {
             return q;
         }
@@ -22983,6 +22984,7 @@ PUBLIC HttpStage *httpCreateHandler(cchar *name, MprModule *module)
     return httpCreateStage(name, HTTP_STAGE_HANDLER, module);
 }
 
+
 /*
     Put packets on the service queue.
  */
@@ -23865,6 +23867,7 @@ static bool willQueueAcceptPacket(HttpQueue *q, HttpPacket *packet);
 static HttpPacket *createAltBodyPacket(HttpQueue *q);
 static void incomingTail(HttpQueue *q, HttpPacket *packet);
 static void outgoingTail(HttpQueue *q, HttpPacket *packet);
+static void incomingTailService(HttpQueue *q);
 static void outgoingTailService(HttpQueue *q);
 
 /*********************************** Code *************************************/
@@ -23879,6 +23882,7 @@ PUBLIC int httpOpenTailFilter()
     HTTP->tailFilter = filter;
     filter->incoming = incomingTail;
     filter->outgoing = outgoingTail;
+    filter->incomingService = incomingTailService;
     filter->outgoingService = outgoingTailService;
     return 0;
 }
@@ -23911,6 +23915,23 @@ static void incomingTail(HttpQueue *q, HttpPacket *packet)
         if (q->net->eof) {
             httpAddInputEndPacket(stream, q);
         }
+    }
+}
+
+
+static void incomingTailService(HttpQueue *q)
+{
+    HttpPacket  *packet;
+
+    for (packet = httpGetPacket(q); packet; packet = httpGetPacket(q)) {
+        if (!willQueueAcceptPacket(q, packet)) {
+            httpPutBackPacket(q, packet);
+            return;
+        }
+        httpPutPacketToNext(q, packet);
+    }
+    if (httpIsQueueSuspended(q->net->inputq)) {
+        httpResumeQueue(q->net->inputq, 1);
     }
 }
 
@@ -23968,6 +23989,7 @@ static void outgoingTailService(HttpQueue *q)
         httpPutPacket(q->net->outputq, packet);
     }
 }
+
 
 /*
     Similar to httpWillQueueAcceptPacket, but also handles HTTP/2 flow control.
@@ -26323,7 +26345,7 @@ static int processUploadBoundary(HttpQueue *q, char *line)
             httpError(stream, HTTP_CODE_BAD_REQUEST, "Bad upload state. Incomplete boundary");
             return MPR_ERR_BAD_STATE;
         }
-        //  Just eat the line as it may be preamble.
+        //  Just eat the line as it may be preamble. If preamble was \r\n, it will be empty string by here.
         return 0;
     }
     if (line[up->boundaryLen] && strcmp(&line[up->boundaryLen], "--") == 0) {

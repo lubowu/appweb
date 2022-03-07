@@ -134,7 +134,8 @@ static int proxyLogDirective(MaState *state, cchar *key, cchar *value);
 static int proxyOpenRequest(HttpQueue *q);
 static int proxyTraceDirective(MaState *state, cchar *key, cchar *value);
 static HttpStream *proxyCreateStream(ProxyRequest *req);
-static void proxyIncomingRequestPacket(HttpQueue *q, HttpPacket *packet);
+static void proxyClientIncoming(HttpQueue *q, HttpPacket *packet);
+static void proxyClientOutgoing(HttpQueue *q);
 static void proxyBackNotifier(HttpStream *stream, int event, int arg);
 static void proxyDeath(ProxyApp *app, MprSignal *sp);
 static void proxyStartRequest(HttpQueue *q);
@@ -174,7 +175,8 @@ PUBLIC int httpProxyInit(Http *http, MprModule *module)
     handler->close = proxyCloseRequest;
     handler->open = proxyOpenRequest;
     handler->start = proxyStartRequest;
-    handler->incoming = proxyIncomingRequestPacket;
+    handler->incoming = proxyClientIncoming;
+    handler->outgoingService = proxyClientOutgoing;
 
 #if ME_DEBUG
         mprAddRoot(mprAddSignalHandler(ME_SIGINFO, proxyInfo, 0, 0, MPR_SIGNAL_AFTER));
@@ -395,7 +397,7 @@ static Proxy *getProxy(HttpRoute *route)
 
 /*
     Notifier for events relating to the client (browser)
-    Confusingly this is the server side
+    Confusingly this is the server side of the client connection.
  */
 static void proxyFrontNotifier(HttpStream *stream, int event, int arg)
 {
@@ -475,7 +477,7 @@ static void proxyBackNotifier(HttpStream *proxyStream, int event, int arg)
     complete = 0;
     switch (event) {
     case HTTP_EVENT_READABLE:
-        httpScheduleQueue(proxyStream->readq);
+        // httpScheduleQueue(proxyStream->readq);
         break;
     case HTTP_EVENT_WRITABLE:
     case HTTP_EVENT_DESTROY:
@@ -541,7 +543,7 @@ static void proxyNetCallback(HttpNet *net, int event)
 /*
     Incoming data from the client destined for proxy.
  */
-static void proxyIncomingRequestPacket(HttpQueue *q, HttpPacket *packet)
+static void proxyClientIncoming(HttpQueue *q, HttpPacket *packet)
 {
     HttpStream      *stream;
     ProxyRequest    *req;
@@ -569,8 +571,7 @@ static void proxyIncomingRequestPacket(HttpQueue *q, HttpPacket *packet)
 }
 
 
-#if KEEP
-static void proxyOutgoingService(HttpQueue *q)
+static void proxyClientOutgoing(HttpQueue *q)
 {
     HttpPacket      *packet;
     HttpStream      *stream;
@@ -582,15 +583,16 @@ static void proxyOutgoingService(HttpQueue *q)
     for (packet = httpGetPacket(q); packet; packet = httpGetPacket(q)) {
         if (!httpWillNextQueueAcceptPacket(q, packet)) {
             httpPutBackPacket(q, packet);
-            return;
+            break;
         }
         httpPutPacketToNext(q, packet);
     }
-    if (!(req->proxyNet->eventMask & MPR_READABLE)) {
+    if (httpIsQueueSuspended(req->proxyStream->readq)) {
+        httpResumeQueue(req->proxyStream->readq, 1);
+        //  This should enable a write event which will run queues
         httpEnableNetEvents(req->proxyNet);
     }
 }
-#endif
 
 
 /*
@@ -609,6 +611,7 @@ static void proxyStreamIncoming(HttpQueue *q)
     }
     //  Stream for the client
     stream = req->stream;
+
     for (packet = httpGetPacket(q); packet; packet = httpGetPacket(q)) {
         packet->stream = stream;
         /*
@@ -619,8 +622,8 @@ static void proxyStreamIncoming(HttpQueue *q)
         }
         if (!httpWillQueueAcceptPacket(q, stream->writeq, packet)) {
             httpPutBackPacket(q, packet);
-            httpEnableNetEvents(req->proxyNet);
-            return;
+            //  Break rather than return so that net events can be enabled incase writeq socket is full
+            break;
         }
         if (packet->flags & HTTP_PACKET_END) {
             httpFinalizeOutput(stream);
@@ -628,7 +631,14 @@ static void proxyStreamIncoming(HttpQueue *q)
             httpPutPacket(stream->writeq, packet);
         }
     }
-    httpServiceNetQueues(stream->net, 0);
+    /*
+        Change to service net events via a writable event (less stack depth)
+        httpServiceNetQueues(stream->net, 0);
+    */
+    if (stream->writeq->count > 0) {
+        httpScheduleQueue(stream->writeq);
+        httpEnableNetEvents(stream->net);
+    }
 }
 
 
