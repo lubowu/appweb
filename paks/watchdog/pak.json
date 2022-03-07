@@ -21,7 +21,7 @@
     },
     "licenses": "Commercial",
     "dependencies": {
-        "mpr": "~8"
+        "mpr": "~9"
     },
     "devDependencies": {
         "makeme": ">=1.0",
