@@ -632,13 +632,10 @@ static void proxyStreamIncoming(HttpQueue *q)
         }
     }
     /*
-        Change to service net events via a writable event (less stack depth)
-        httpServiceNetQueues(stream->net, 0);
+        Must run net events for output data and when finalized
     */
-    if (stream->writeq->count > 0) {
-        httpScheduleQueue(stream->writeq);
-        httpEnableNetEvents(stream->net);
-    }
+    httpScheduleQueue(stream->writeq);
+    httpEnableNetEvents(stream->net);
 }
 
 
