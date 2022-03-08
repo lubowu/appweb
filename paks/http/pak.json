@@ -23,7 +23,7 @@
     "dependencies": {
         "assist": "~1",
         "certs": "~1",
-        "mbedtls": "~2.8",
+        "mbedtls": "~2",
         "me-win": "~1",
         "mpr": "~9",
         "mpr-mbedtls": "~3",

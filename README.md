@@ -81,6 +81,8 @@ Click Project -> Run to run.
 
 ### To build with MakeMe:
 
+This build approach is only recommended for Linux and MacOS. Windows support is limited.
+
 To install MakeMe, download it from https://www.embedthis.com/makeme/.
 
     ./configure
