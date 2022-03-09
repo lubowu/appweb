@@ -179,7 +179,7 @@ PUBLIC int httpProxyInit(Http *http, MprModule *module)
     handler->outgoingService = proxyClientOutgoing;
 
 #if ME_DEBUG
-        mprAddRoot(mprAddSignalHandler(ME_SIGINFO, proxyInfo, 0, 0, MPR_SIGNAL_AFTER));
+    mprAddRoot(mprAddSignalHandler(ME_SIGINFO, proxyInfo, 0, 0, MPR_SIGNAL_AFTER));
 #endif
     return 0;
 }
@@ -222,6 +222,7 @@ static int proxyOpenRequest(HttpQueue *q)
         httpError(stream, HTTP_CODE_SERVICE_UNAVAILABLE, "Cannot allocate network for proxy %s", stream->rx->route->pattern);
         return MPR_ERR_CANT_OPEN;
     }
+    proxyNet->trace = proxy->trace;
 
     /*
         Allocate a per-request instance
@@ -416,14 +417,21 @@ static void proxyFrontNotifier(HttpStream *stream, int event, int arg)
     switch (event) {
     case HTTP_EVENT_READABLE:
     case HTTP_EVENT_WRITABLE:
+        break;
     case HTTP_EVENT_ERROR:
+        if (!stream->tx->finalizedInput || req->proxyStream->tx->finalizedOutput) {
+            if (stream->upgraded) {
+                httpError(req->proxyStream, HTTP_CLOSE, "Client closed connection");
+            } else {
+                httpError(req->proxyStream, HTTP_CLOSE, "Client closed connection before request sent to proxy");
+            }
+            req->proxyNet->dispatcher = 0;
+            httpServiceNetQueues(req->proxyStream->net, 0);
+        }
         break;
     case HTTP_EVENT_DESTROY:
-        if (HTTP_STATE_BEGIN < req->proxyStream->state && req->proxyStream->state < HTTP_STATE_FINALIZED) {
-            httpError(req->proxyStream, 0, "Client closed connection before receiving a response");
-            httpFinalizeInput(req->proxyStream);
-            req->proxyNet->dispatcher = 0;
-        }
+        break;
+    case HTTP_EVENT_DONE:
         break;
 
     case HTTP_EVENT_STATE:
@@ -447,9 +455,9 @@ static void proxyFrontNotifier(HttpStream *stream, int event, int arg)
             }
             break;
         case HTTP_STATE_RUNNING:
+            break;
         case HTTP_STATE_FINALIZED:
             break;
-
         case HTTP_STATE_COMPLETE:
             break;
         }
@@ -477,9 +485,9 @@ static void proxyBackNotifier(HttpStream *proxyStream, int event, int arg)
     complete = 0;
     switch (event) {
     case HTTP_EVENT_READABLE:
-        // httpScheduleQueue(proxyStream->readq);
-        break;
     case HTTP_EVENT_WRITABLE:
+        break;
+
     case HTTP_EVENT_DESTROY:
         break;
 
@@ -488,7 +496,7 @@ static void proxyBackNotifier(HttpStream *proxyStream, int event, int arg)
         httpSetStreamNotifier(req->stream, NULL);
         httpDestroyStream(proxyStream);
 
-        if (net->error || (net->protocol < 2 && (proxyStream->keepAliveCount <= 0 || proxyStream->upgraded))) {
+        if (net->error || proxyStream->upgraded || (net->protocol < 2 && proxyStream->keepAliveCount <= 0)) {
             httpDestroyNet(net);
         } else {
             net->dispatcher = NULL;
@@ -515,6 +523,7 @@ static void proxyBackNotifier(HttpStream *proxyStream, int event, int arg)
         case HTTP_STATE_READY:
         case HTTP_STATE_RUNNING:
         case HTTP_STATE_FINALIZED:
+            break;
         case HTTP_STATE_COMPLETE:
             break;
         }
@@ -866,6 +875,7 @@ static HttpNet *getProxyNetwork(ProxyApp *app, MprDispatcher *dispatcher)
             continue;
         }
         //  Switch to the client dispatcher to serialize requests (no locking yea!)
+        assert(!(dispatcher->flags & MPR_DISPATCHER_DESTROYED));
         net->dispatcher = dispatcher;
         net->sharedDispatcher = 1;
         return net;
@@ -1247,6 +1257,10 @@ static int proxyTraceDirective(MaState *state, cchar *key, cchar *value)
     Proxy   *proxy;
 
     proxy = getProxy(state->route);
+    if (proxy->trace == 0) {
+        proxy->trace = httpCreateTrace(proxy->trace);
+        proxy->trace->flags &= ~MPR_LOG_CMDLINE;
+    }
     proxy->trace->flags &= ~MPR_LOG_CMDLINE;
     return maTraceDirective(state, proxy->trace, key, value);
 }

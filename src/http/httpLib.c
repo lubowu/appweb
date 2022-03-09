@@ -15135,15 +15135,19 @@ static void closeStreams(HttpNet *net)
 {
     HttpStream  *stream;
     HttpRx      *rx;
+    HttpTx      *tx;
     int         next;
 
     for (ITERATE_ITEMS(net->streams, stream, next)) {
         rx = stream->rx;
+        tx = stream->tx;
         httpSetEof(stream);
+
         if (stream->state < HTTP_STATE_PARSED) {
-            httpError(stream, 0, "Peer closed connection before receiving a response");
-        } else if (rx && !rx->eof && rx->chunkState != HTTP_CHUNK_UNCHUNKED && rx->chunkState != HTTP_CHUNK_EOF) {
-            httpError(stream, 0, "Peer closed connection before full response received");
+            httpError(stream, 0, "Peer closed connection before receiving full request");
+
+        } else if (tx && !tx->finalizedOutput) {
+            httpError(stream, 0, "Peer closed connection before full response transmitted");
         }
         httpSetState(stream, HTTP_STATE_COMPLETE);
     }
@@ -29638,4 +29642,3 @@ bool httpIsLastPacket(HttpPacket *packet)
     This software is distributed under a commercial license. Consult the LICENSE.md
     distributed with this software for full details and copyrights.
  */
-
