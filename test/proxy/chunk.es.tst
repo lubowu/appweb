@@ -7,5 +7,6 @@ let http: Http = new Http
 
 http.post(HTTP + "/index.html")
 http.wait()
+ttrue(http.readString().contains("Hello"))
 ttrue(http.status == 200)
 http.close()

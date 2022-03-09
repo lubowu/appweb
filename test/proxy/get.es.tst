@@ -8,8 +8,8 @@ let http: Http = new Http
 //  Basic get. Validate response code and contents
 http.get(HTTP + "/index.html")
 ttrue(http.status == 200)
+ttrue(http.readString().contains("Hello"))
 http.reset()
-// ttrue(http.readString().contains("Hello"))
 
 //  Validate get contents
 http.get(HTTP + "/index.html")

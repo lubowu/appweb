@@ -7,7 +7,8 @@ let http: Http = new Http
 
 //  Test http.put with content data
 data = Path("test.dat").readString()
-http.put(HTTP + "/tmp/test.dat", data)
+
+http.put(HTTP + "/tmp/test.dat?r1", data)
 if (http.status != 201 && http.status != 204) {
     print("STATUS", http.status)
     print(http.response)
@@ -15,15 +16,9 @@ if (http.status != 201 && http.status != 204) {
 ttrue(http.status == 201 || http.status == 204)
 http.close()
 
-//  This request should hang because we don't write any data and finalize. Wait with a timeout.
-http.setHeader("Content-Length", 1000)
-http.put(HTTP + "/tmp/test.dat")
-ttrue(http.wait(250) == false)
-http.close()
-
 path = Path("test.dat")
 http.setHeader("Content-Length", path.size)
-http.put(HTTP + "/tmp/test.dat")
+http.put(HTTP + "/tmp/test.dat?r3")
 file = File(path).open()
 buf = new ByteArray
 while (file.read(buf)) {

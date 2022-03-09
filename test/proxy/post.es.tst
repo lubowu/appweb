@@ -12,6 +12,7 @@ if (thas('ME_ESP')) {
     http.close()
 
     http.form(HTTP + "/form.esp", {name: "John", address: "700 Park Ave"})
+    ttrue(http.status == 200)
     ttrue(http.response.contains('FORM name=John'))
     ttrue(http.response.contains('FORM address=700 Park Ave'))
     http.close()
