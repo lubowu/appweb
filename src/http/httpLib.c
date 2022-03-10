@@ -26059,6 +26059,8 @@ PUBLIC ssize httpWrite(HttpQueue *q, cchar *fmt, ...)
 #define HTTP_UPLOAD_CONTENT_DATA          4   /* Content encoded data */
 #define HTTP_UPLOAD_CONTENT_END           5   /* End of multipart message */
 
+#define MAX_BOUNDARY                      512
+
 /*
     Per upload context
  */
@@ -26149,7 +26151,7 @@ static Upload *allocUpload(HttpQueue *q)
         up->boundary = sjoin("--", boundary, NULL);
         up->boundaryLen = strlen(up->boundary);
     }
-    if (up->boundaryLen == 0 || *up->boundary == '\0') {
+    if (up->boundaryLen == 0 || *up->boundary == '\0' || slen(up->boundary) > MAX_BOUNDARY) {
         httpError(stream, HTTP_CODE_BAD_REQUEST, "Bad boundary");
         return 0;
     }
@@ -26607,9 +26609,10 @@ static int processUploadData(HttpQueue *q)
         if (up->tmpPath) {
             /*
                 No signature found yet. probably more data to come. Must handle split boundaries.
+                Must also handle CRLF (2) before final boundary
              */
             data = mprGetBufStart(content);
-            dataLen = pureData ? size : (size - (up->boundaryLen - 1));
+            dataLen = pureData ? size : (size - (up->boundaryLen - 1 + 2));
             if (dataLen > 0) {
                 if (writeToFile(q, mprGetBufStart(content), dataLen) < 0) {
                     return MPR_ERR_CANT_WRITE;
