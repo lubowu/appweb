@@ -9607,6 +9607,9 @@ static void incomingHttp2(HttpQueue *q, HttpPacket *packet)
             frameHandlers[frame->type](q, packet);
             net->frame = 0;
             stream = frame->stream;
+
+            httpServiceNetQueues(net, 0);
+
             if (stream && !stream->destroyed) {
                 if (stream->disconnect) {
                     sendReset(q, stream, HTTP2_INTERNAL_ERROR, "Stream request error %s", stream->errorMsg);
@@ -10238,7 +10241,7 @@ static void parseHeaders2(HttpQueue *q, HttpStream *stream)
             return;
         }
     }
-    if (stream->rx->endStream) {
+    if (rx->endStream) {
         httpAddInputEndPacket(stream, stream->inputq);
     }
     if (!net->sentGoaway) {
@@ -10596,10 +10599,6 @@ static void parseResetFrame(HttpQueue *q, HttpPacket *packet)
     frame = packet->data;
     stream = frame->stream;
 
-    /*
-    if (stream->h2State == H2_IDLE) {
-        sendGoAway(q, HTTP2_PROTOCOL_ERROR, "Bad reset frame");
-    } */
     if (httpGetPacketLength(packet) != sizeof(uint32) || frame->streamID == 0) {
         sendGoAway(q, HTTP2_PROTOCOL_ERROR, "Bad reset frame");
         return;
@@ -10792,12 +10791,17 @@ static void processDataFrame(HttpQueue *q, HttpPacket *packet)
 
     len = httpGetPacketLength(packet);
     rx->dataFrameLength += len;
+
     if ((rx->http2ContentLength >= 0) &&
             ((rx->dataFrameLength > rx->http2ContentLength) || (rx->eof && rx->dataFrameLength < rx->http2ContentLength))) {
         sendGoAway(q->net->socketq, HTTP2_PROTOCOL_ERROR, "Data content vs content-length mismatch");
-
-    } else if (httpGetPacketLength(packet) > 0) {
+        return;
+    }
+    if (httpGetPacketLength(packet) > 0) {
         httpPutPacket(stream->inputq, packet);
+    }
+    if (rx->endStream) {
+        httpAddInputEndPacket(stream, stream->inputq);
     }
 }
 
