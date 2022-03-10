@@ -39,11 +39,13 @@ PUBLIC HttpStatusCode HttpStatusCodes[] = {
     { 200, "200", "OK" },
     { 201, "201", "Created" },
     { 202, "202", "Accepted" },
+    { 203, "203", "Not Authoritative" },
     { 204, "204", "No Content" },
     { 205, "205", "Reset Content" },
     { 206, "206", "Partial Content" },
     { 301, "301", "Moved Permanently" },
     { 302, "302", "Moved Temporarily" },
+    { 303, "303", "See Other" },
     { 304, "304", "Not Modified" },
     { 305, "305", "Use Proxy" },
     { 307, "307", "Temporary Redirect" },
@@ -64,6 +66,10 @@ PUBLIC HttpStatusCode HttpStatusCodes[] = {
     { 415, "415", "Unsupported Media Type" },
     { 416, "416", "Requested Range Not Satisfiable" },
     { 417, "417", "Expectation Failed" },
+    { 418, "418", "Im a Teapot" },
+    { 422, "422", "Unprocessable" },
+    { 426, "426", "Upgrade Required" },
+    { 444, "446", "No Response" },
     { 500, "500", "Internal Server Error" },
     { 501, "501", "Not Implemented" },
     { 502, "502", "Bad Gateway" },
@@ -7379,26 +7385,24 @@ static void errorv(HttpStream *stream, int flags, cchar *fmt, va_list args)
     tx = stream->tx;
 
     status = flags & HTTP_CODE_MASK;
-    if (status == 0) {
-        status = HTTP_CODE_INTERNAL_SERVER_ERROR;
-    }
     if (flags & (HTTP_ABORT | HTTP_CLOSE)) {
         stream->keepAliveCount = 0;
         httpSetEof(stream);
     }
     if (!stream->error) {
         stream->error = 1;
-        httpOmitBody(stream);
-        stream->errorMsg = formatErrorv(stream, status, fmt, args);
-        httpLog(stream->trace, "error", "error", "msg:%s", stream->errorMsg);
-        HTTP_NOTIFY(stream, HTTP_EVENT_ERROR, 0);
-
-        if (httpServerStream(stream)) {
-            if (status == HTTP_CODE_NOT_FOUND) {
-                httpMonitorEvent(stream, HTTP_COUNTER_NOT_FOUND_ERRORS, 1);
+        if (status) {
+            httpOmitBody(stream);
+            stream->errorMsg = formatErrorv(stream, status, fmt, args);
+            httpLog(stream->trace, "error", "error", "msg:%s", stream->errorMsg);
+            if (httpServerStream(stream)) {
+                if (status == HTTP_CODE_NOT_FOUND) {
+                    httpMonitorEvent(stream, HTTP_COUNTER_NOT_FOUND_ERRORS, 1);
+                }
+                httpMonitorEvent(stream, HTTP_COUNTER_ERRORS, 1);
             }
-            httpMonitorEvent(stream, HTTP_COUNTER_ERRORS, 1);
         }
+        HTTP_NOTIFY(stream, HTTP_EVENT_ERROR, 0);
         httpSetHeaderString(stream, "Cache-Control", "no-cache");
 
         if (httpServerStream(stream) && tx && rx) {
@@ -7422,7 +7426,7 @@ static void errorv(HttpStream *stream, int flags, cchar *fmt, va_list args)
                         redirected = 1;
                     }
                 }
-                if (!redirected) {
+                if (status && !redirected) {
                     makeAltBody(stream, status);
                 }
             }
@@ -9603,6 +9607,9 @@ static void incomingHttp2(HttpQueue *q, HttpPacket *packet)
             frameHandlers[frame->type](q, packet);
             net->frame = 0;
             stream = frame->stream;
+
+            httpServiceNetQueues(net, 0);
+
             if (stream && !stream->destroyed) {
                 if (stream->disconnect) {
                     sendReset(q, stream, HTTP2_INTERNAL_ERROR, "Stream request error %s", stream->errorMsg);
@@ -10234,7 +10241,7 @@ static void parseHeaders2(HttpQueue *q, HttpStream *stream)
             return;
         }
     }
-    if (stream->rx->endStream) {
+    if (rx->endStream) {
         httpAddInputEndPacket(stream, stream->inputq);
     }
     if (!net->sentGoaway) {
@@ -10592,10 +10599,6 @@ static void parseResetFrame(HttpQueue *q, HttpPacket *packet)
     frame = packet->data;
     stream = frame->stream;
 
-    /*
-    if (stream->h2State == H2_IDLE) {
-        sendGoAway(q, HTTP2_PROTOCOL_ERROR, "Bad reset frame");
-    } */
     if (httpGetPacketLength(packet) != sizeof(uint32) || frame->streamID == 0) {
         sendGoAway(q, HTTP2_PROTOCOL_ERROR, "Bad reset frame");
         return;
@@ -10788,12 +10791,17 @@ static void processDataFrame(HttpQueue *q, HttpPacket *packet)
 
     len = httpGetPacketLength(packet);
     rx->dataFrameLength += len;
+
     if ((rx->http2ContentLength >= 0) &&
             ((rx->dataFrameLength > rx->http2ContentLength) || (rx->eof && rx->dataFrameLength < rx->http2ContentLength))) {
         sendGoAway(q->net->socketq, HTTP2_PROTOCOL_ERROR, "Data content vs content-length mismatch");
-
-    } else if (httpGetPacketLength(packet) > 0) {
+        return;
+    }
+    if (httpGetPacketLength(packet) > 0) {
         httpPutPacket(stream->inputq, packet);
+    }
+    if (rx->endStream) {
+        httpAddInputEndPacket(stream, stream->inputq);
     }
 }
 
@@ -15143,13 +15151,15 @@ static void closeStreams(HttpNet *net)
         tx = stream->tx;
         httpSetEof(stream);
 
-        if (stream->state < HTTP_STATE_PARSED) {
-            httpError(stream, 0, "Peer closed connection before receiving full request");
+        if (stream->state > HTTP_STATE_BEGIN) {
+            if (stream->state < HTTP_STATE_PARSED) {
+                httpError(stream, 0, "Peer closed connection before receiving full request");
 
-        } else if (tx && !tx->finalizedOutput) {
-            httpError(stream, 0, "Peer closed connection before full response transmitted");
+            } else if (tx && !tx->finalizedOutput) {
+                httpError(stream, 0, "Peer closed connection before full response transmitted");
+            }
+            httpSetState(stream, HTTP_STATE_COMPLETE);
         }
-        httpSetState(stream, HTTP_STATE_COMPLETE);
     }
 }
 
@@ -17335,7 +17345,10 @@ static void parseUri(HttpStream *stream)
          */
         up = rx->parsedUri;
         up->scheme = sclone(stream->secure ? "https" : "http");
-        hostname = rx->hostHeader ? rx->hostHeader : stream->host->name;
+        hostname = rx->hostHeader;
+        if (!hostname && stream->host) {
+            hostname = stream->host->name;
+        }
         if (!hostname) {
             hostname = stream->sock->acceptIp;
         }
@@ -23028,7 +23041,9 @@ PUBLIC void httpDefaultIncoming(HttpQueue *q, HttpPacket *packet)
         } else {
             httpJoinPacketForService(q, packet, HTTP_SCHEDULE_QUEUE);
         }
-        HTTP_NOTIFY(stream, HTTP_EVENT_READABLE, 0);
+        if (stream->state < HTTP_STATE_COMPLETE) {
+            HTTP_NOTIFY(stream, HTTP_EVENT_READABLE, 0);
+        }
 
     } else {
         if (q->service) {
@@ -26051,6 +26066,8 @@ PUBLIC ssize httpWrite(HttpQueue *q, cchar *fmt, ...)
 #define HTTP_UPLOAD_CONTENT_DATA          4   /* Content encoded data */
 #define HTTP_UPLOAD_CONTENT_END           5   /* End of multipart message */
 
+#define MAX_BOUNDARY                      512
+
 /*
     Per upload context
  */
@@ -26141,7 +26158,7 @@ static Upload *allocUpload(HttpQueue *q)
         up->boundary = sjoin("--", boundary, NULL);
         up->boundaryLen = strlen(up->boundary);
     }
-    if (up->boundaryLen == 0 || *up->boundary == '\0') {
+    if (up->boundaryLen == 0 || *up->boundary == '\0' || slen(up->boundary) > MAX_BOUNDARY) {
         httpError(stream, HTTP_CODE_BAD_REQUEST, "Bad boundary");
         return 0;
     }
@@ -26599,9 +26616,10 @@ static int processUploadData(HttpQueue *q)
         if (up->tmpPath) {
             /*
                 No signature found yet. probably more data to come. Must handle split boundaries.
+                Must also handle CRLF (2) before final boundary
              */
             data = mprGetBufStart(content);
-            dataLen = pureData ? size : (size - (up->boundaryLen - 1));
+            dataLen = pureData ? size : (size - (up->boundaryLen - 1 + 2));
             if (dataLen > 0) {
                 if (writeToFile(q, mprGetBufStart(content), dataLen) < 0) {
                     return MPR_ERR_CANT_WRITE;
