@@ -17343,7 +17343,10 @@ static void parseUri(HttpStream *stream)
          */
         up = rx->parsedUri;
         up->scheme = sclone(stream->secure ? "https" : "http");
-        hostname = rx->hostHeader ? rx->hostHeader : stream->host->name;
+        hostname = rx->hostHeader;
+        if (!hostname && stream->host) {
+            hostname = stream->host->name;
+        }
         if (!hostname) {
             hostname = stream->sock->acceptIp;
         }
