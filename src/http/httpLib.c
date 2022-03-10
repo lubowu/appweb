@@ -15151,13 +15151,15 @@ static void closeStreams(HttpNet *net)
         tx = stream->tx;
         httpSetEof(stream);
 
-        if (stream->state < HTTP_STATE_PARSED) {
-            httpError(stream, 0, "Peer closed connection before receiving full request");
+        if (stream->state > HTTP_STATE_BEGIN) {
+            if (stream->state < HTTP_STATE_PARSED) {
+                httpError(stream, 0, "Peer closed connection before receiving full request");
 
-        } else if (tx && !tx->finalizedOutput) {
-            httpError(stream, 0, "Peer closed connection before full response transmitted");
+            } else if (tx && !tx->finalizedOutput) {
+                httpError(stream, 0, "Peer closed connection before full response transmitted");
+            }
+            httpSetState(stream, HTTP_STATE_COMPLETE);
         }
-        httpSetState(stream, HTTP_STATE_COMPLETE);
     }
 }
 
@@ -23039,7 +23041,9 @@ PUBLIC void httpDefaultIncoming(HttpQueue *q, HttpPacket *packet)
         } else {
             httpJoinPacketForService(q, packet, HTTP_SCHEDULE_QUEUE);
         }
-        HTTP_NOTIFY(stream, HTTP_EVENT_READABLE, 0);
+        if (stream->state < HTTP_STATE_COMPLETE) {
+            HTTP_NOTIFY(stream, HTTP_EVENT_READABLE, 0);
+        }
 
     } else {
         if (q->service) {
