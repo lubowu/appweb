@@ -124,7 +124,7 @@ static void killProxyApp(ProxyApp *app);
 static void manageProxy(Proxy *proxy, int flags);
 static void manageProxyApp(ProxyApp *app, int flags);
 static void manageProxyRequest(ProxyRequest *proxyRequest, int flags);
-static void proxyCleanRequest(ProxyRequest *req);
+static void proxyAbortRequest(ProxyRequest *req);
 static void proxyCloseRequest(HttpQueue *q);
 static int proxyCloseConfigDirective(MaState *state, cchar *key, cchar *value);
 static int proxyConfigDirective(MaState *state, cchar *key, cchar *value);
@@ -481,9 +481,9 @@ static void proxyFrontNotifier(HttpStream *stream, int event, int arg)
  */
 static void proxyBackNotifier(HttpStream *proxyStream, int event, int arg)
 {
-    ProxyRequest    *req, *rq;
+    ProxyRequest    *req;
     HttpNet         *net;
-    int             complete, next;
+    int             complete;
 
     net = proxyStream->net;
     assert(net->endpoint == 0);
@@ -502,6 +502,9 @@ static void proxyBackNotifier(HttpStream *proxyStream, int event, int arg)
 
     case HTTP_EVENT_DONE:
         httpLog(proxyStream->trace, "tx.proxy", "result", "msg:Request complete");
+        if (proxyStream->error) {
+            proxyAbortRequest(req);
+        }
         httpDestroyStream(proxyStream);
 
         if (net->error || proxyStream->upgraded || (net->protocol < 2 && proxyStream->keepAliveCount <= 0)) {
@@ -512,9 +515,12 @@ static void proxyBackNotifier(HttpStream *proxyStream, int event, int arg)
         break;
 
     case HTTP_EVENT_ERROR:
+        proxyAbortRequest(req);
+#if UNUSED
         for (ITERATE_ITEMS(req->app->requests, rq, next)) {
-            mprCreateLocalEvent(req->stream->dispatcher, "proxy-reap", 0, proxyCleanRequest, req, 0);
+            mprCreateLocalEvent(req->stream->dispatcher, "proxy-reap", 0, proxyAbortRequest, req, 0);
         }
+#endif
         break;
 
     case HTTP_EVENT_STATE:
@@ -1052,7 +1058,7 @@ static void proxyDeath(ProxyApp *app, MprSignal *sp)
             Notify all requests on their relevant dispatcher
          */
         for (ITERATE_ITEMS(app->requests, req, next)) {
-            mprCreateLocalEvent(req->stream->dispatcher, "proxy-reap", 0, proxyCleanRequest, req, 0);
+            mprCreateLocalEvent(req->stream->dispatcher, "proxy-reap", 0, proxyAbortRequest, req, 0);
         }
         for (ITERATE_ITEMS(app->networks, net, next)) {
             httpDestroyNet(net);
@@ -1065,17 +1071,16 @@ static void proxyDeath(ProxyApp *app, MprSignal *sp)
 /*
     Clean / abort request
  */
-static void proxyCleanRequest(ProxyRequest *req)
+static void proxyAbortRequest(ProxyRequest *req)
 {
     HttpStream  *stream;
 
     stream = req->stream;
-
     if (stream->state <= HTTP_STATE_BEGIN || stream->rx->route == NULL) {
         /* Request already complete and stream has been recycled (prepared for next request) */
         return;
     }
-    httpError(stream, HTTP_CODE_INTERNAL_SERVER_ERROR, "Proxy comms error");
+    httpError(stream, HTTP_ABORT | HTTP_CODE_INTERNAL_SERVER_ERROR, "Proxy comms error");
 }
 
 
