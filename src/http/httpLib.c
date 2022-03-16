@@ -14263,8 +14263,9 @@ PUBLIC void httpNetTimeout(HttpNet *net)
         /*
             Will run on the HttpNet dispatcher unless shutting down and it is destroyed already
          */
-        assert(net->dispatcher == NULL || !(net->dispatcher->flags & MPR_DISPATCHER_DESTROYED));
-        net->timeoutEvent = mprCreateLocalEvent(net->dispatcher, "netTimeout", 0, netTimeout, net, 0);
+        if (net->dispatcher && !(net->dispatcher->flags & MPR_DISPATCHER_DESTROYED)) {
+            net->timeoutEvent = mprCreateLocalEvent(net->dispatcher, "netTimeout", 0, netTimeout, net, 0);
+        }
     }
 }
 
@@ -23576,8 +23577,9 @@ PUBLIC void httpStreamTimeout(HttpStream *stream)
         /*
             Will run on the HttpStream dispatcher unless shutting down and it is destroyed already
          */
-        assert(!(stream->dispatcher->flags & MPR_DISPATCHER_DESTROYED));
-        stream->timeoutEvent = mprCreateLocalEvent(stream->dispatcher, "streamTimeout", 0, streamTimeout, stream, 0);
+        if (stream->dispatcher && !(stream->dispatcher->flags & MPR_DISPATCHER_DESTROYED)) {
+            stream->timeoutEvent = mprCreateLocalEvent(stream->dispatcher, "streamTimeout", 0, streamTimeout, stream, 0);
+        }
     }
 }
 
