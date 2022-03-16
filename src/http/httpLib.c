@@ -15198,10 +15198,15 @@ static void closeStreams(HttpNet *net)
 
         if (stream->state > HTTP_STATE_BEGIN) {
             if (stream->state < HTTP_STATE_PARSED) {
-                httpError(stream, 0, "Peer closed connection before receiving full request");
+                httpError(stream, 0, "Peer closed connection before receiving response");
 
-            } else if (tx && !tx->finalizedOutput) {
-                httpError(stream, 0, "Peer closed connection before full response transmitted");
+            } else if (tx) {
+                if (!tx->finalizedOutput) {
+                    httpError(stream, 0, "Peer closed connection before transmitting full response");
+
+                } else if (!tx->finalizedInput) {
+                    httpError(stream, 0, "Peer closed connection before receiving full response");
+                }
             }
             httpSetState(stream, HTTP_STATE_COMPLETE);
         }
@@ -23493,23 +23498,18 @@ static void resetQueues(HttpStream *stream)
  */
 PUBLIC void httpDisconnectStream(HttpStream *stream)
 {
-    HttpRx      *rx;
     HttpTx      *tx;
 
-    rx = stream->rx;
     tx = stream->tx;
-
     stream->error++;
     if (tx) {
-        tx->responded = 1;
-        tx->finalizedOutput = 1;
+        //  Ensure state transitions to finalized
         tx->finalizedConnector = 1;
+        httpFinalizeInput(stream);
         httpFinalize(stream);
     }
-    if (rx && !rx->eof) {
-        httpSetEof(stream);
-    }
     if (stream->net->protocol < 2) {
+        mprDisconnectSocket(stream->sock);
         stream->net->error = 1;
     }
 }
@@ -25395,6 +25395,7 @@ PUBLIC void httpFinalize(HttpStream *stream)
     //  Must finalize output first so finalizedOutput is set when httpFinalizeInput will set state to READY
     httpFinalizeOutput(stream);
     httpFinalizeInput(stream);
+    checkFinalized(stream);
 }
 
 
