@@ -1240,7 +1240,7 @@ static cchar *getRedirectUrl(HttpStream *stream, cchar *url)
     httpRemoveHeader(stream, "Host");
     location = httpCreateUri(url, 0);
     if (!location || !location->valid) {
-        httpError(stream, HTTP_ABORT, "Invalid location URI");
+        httpError(stream, HTTP_CLOSE, "Invalid location URI");
         return 0;
     }
     target = httpJoinUri(stream->tx->parsedUri, 1, &location);
