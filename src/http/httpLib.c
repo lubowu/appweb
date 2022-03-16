@@ -2859,7 +2859,7 @@ static void incomingChunk(HttpQueue *q, HttpPacket *packet)
         while (packet && !stream->error && !rx->eof) {
             switch (rx->chunkState) {
             case HTTP_CHUNK_UNCHUNKED:
-                httpError(stream, HTTP_ABORT | HTTP_CODE_BAD_REQUEST, "Bad chunk state");
+                httpError(stream, HTTP_CLOSE | HTTP_CODE_BAD_REQUEST, "Bad chunk state");
                 return;
 
             case HTTP_CHUNK_DATA:
@@ -2902,12 +2902,12 @@ static void incomingChunk(HttpQueue *q, HttpPacket *packet)
                 }
                 bad += (cp[-1] != '\r' || cp[0] != '\n');
                 if (bad) {
-                    httpError(stream, HTTP_ABORT | HTTP_CODE_BAD_REQUEST, "Bad chunk specification");
+                    httpError(stream, HTTP_CLOSE | HTTP_CODE_BAD_REQUEST, "Bad chunk specification");
                     return;
                 }
                 chunkSize = (int) stoiradix(&start[2], 16, NULL);
                 if (!isxdigit((uchar) start[2]) || chunkSize < 0) {
-                    httpError(stream, HTTP_ABORT | HTTP_CODE_BAD_REQUEST, "Bad chunk specification");
+                    httpError(stream, HTTP_CLOSE | HTTP_CODE_BAD_REQUEST, "Bad chunk specification");
                     return;
                 }
                 if (chunkSize == 0) {
@@ -2920,13 +2920,15 @@ static void incomingChunk(HttpQueue *q, HttpPacket *packet)
                     cp += 2;
                     bad += (cp[-1] != '\r' || cp[0] != '\n');
                     if (bad) {
-                        httpError(stream, HTTP_ABORT | HTTP_CODE_BAD_REQUEST, "Bad final chunk specification");
+                        httpError(stream, HTTP_CLOSE | HTTP_CODE_BAD_REQUEST, "Bad final chunk specification");
                         return;
                     }
                 }
                 mprAdjustBufStart(buf, (cp - start + 1));
-                /* Remaining content is set to the next chunk size */
+
+                // Remaining content is set to the next chunk size
                 rx->remainingContent = chunkSize;
+
                 if (chunkSize == 0) {
                     rx->chunkState = HTTP_CHUNK_EOF;
                     httpAddInputEndPacket(stream, q->nextQ);
@@ -2940,7 +2942,7 @@ static void incomingChunk(HttpQueue *q, HttpPacket *packet)
                 break;
 
             default:
-                httpError(stream, HTTP_ABORT | HTTP_CODE_BAD_REQUEST, "Bad chunk state %d", rx->chunkState);
+                httpError(stream, HTTP_CLOSE | HTTP_CODE_BAD_REQUEST, "Bad chunk state %d", rx->chunkState);
                 return;
             }
         }
@@ -7631,9 +7633,8 @@ static int openFileHandler(HttpQueue *q)
             httpLog(stream->trace, "fileHandler", "error", "msg:Document is not a regular file, filename:%s", tx->filename);
             httpError(stream, HTTP_CODE_NOT_FOUND, "Cannot serve document");
 
-        } else if (tx->fileInfo.size > stream->limits->txBodySize &&
-                stream->limits->txBodySize != HTTP_UNLIMITED) {
-            httpError(stream, HTTP_ABORT | HTTP_CODE_REQUEST_TOO_LARGE,
+        } else if (tx->fileInfo.size > stream->limits->txBodySize && stream->limits->txBodySize != HTTP_UNLIMITED) {
+            httpError(stream, HTTP_CLOSE | HTTP_CODE_REQUEST_TOO_LARGE,
                 "Http transmission aborted. File size exceeds max body of %lld bytes", stream->limits->txBodySize);
 
         } else {
@@ -8948,7 +8949,7 @@ static bool gotHeaders(HttpQueue *q, HttpPacket *packet)
         len = end - start;
     }
     if (len >= limits->headerSize || len >= q->max) {
-        httpLimitError(stream, HTTP_ABORT | HTTP_CODE_REQUEST_TOO_LARGE,
+        httpLimitError(stream, HTTP_CLOSE | HTTP_CODE_REQUEST_TOO_LARGE,
             "Header too big. Length %zd vs limit %d", len, limits->headerSize);
         return 0;
     }
@@ -8974,7 +8975,7 @@ static void parseRequestLine(HttpQueue *q, HttpPacket *packet)
 
     method = getToken(packet, NULL, TOKEN_WORD);
     if (method == NULL || *method == '\0') {
-        httpBadRequestError(stream, HTTP_ABORT | HTTP_CODE_BAD_REQUEST, "Bad HTTP request. Empty method");
+        httpBadRequestError(stream, HTTP_CLOSE | HTTP_CODE_BAD_REQUEST, "Bad HTTP request. Empty method");
         return;
     }
     rx->originalMethod = rx->method = supper(method);
@@ -8982,12 +8983,12 @@ static void parseRequestLine(HttpQueue *q, HttpPacket *packet)
 
     uri = getToken(packet, NULL, TOKEN_URI);
     if (uri == NULL || *uri == '\0') {
-        httpBadRequestError(stream, HTTP_ABORT | HTTP_CODE_BAD_REQUEST, "Bad HTTP request. Invalid URI");
+        httpBadRequestError(stream, HTTP_CLOSE | HTTP_CODE_BAD_REQUEST, "Bad HTTP request. Invalid URI");
         return;
     }
     len = slen(uri);
     if (len >= limits->uriSize) {
-        httpLimitError(stream, HTTP_ABORT | HTTP_CODE_REQUEST_URL_TOO_LARGE,
+        httpLimitError(stream, HTTP_CLOSE | HTTP_CODE_REQUEST_URL_TOO_LARGE,
             "Bad request. URI too long. Length %zd vs limit %d", len, limits->uriSize);
         return;
     }
@@ -8997,7 +8998,7 @@ static void parseRequestLine(HttpQueue *q, HttpPacket *packet)
     }
     protocol = getToken(packet, "\r\n", TOKEN_WORD);
     if (protocol == NULL || *protocol == '\0') {
-        httpBadRequestError(stream, HTTP_ABORT | HTTP_CODE_BAD_REQUEST, "Bad HTTP request. Empty protocol");
+        httpBadRequestError(stream, HTTP_CLOSE | HTTP_CODE_BAD_REQUEST, "Bad HTTP request. Empty protocol");
         return;
     }
     rx->protocol = protocol = supper(protocol);
@@ -9008,7 +9009,7 @@ static void parseRequestLine(HttpQueue *q, HttpPacket *packet)
         }
         stream->net->protocol = 0;
     } else if (strcmp(protocol, "HTTP/1.1") != 0) {
-        httpBadRequestError(stream, HTTP_ABORT | HTTP_CODE_NOT_ACCEPTABLE, "Unsupported HTTP protocol");
+        httpBadRequestError(stream, HTTP_CLOSE | HTTP_CODE_NOT_ACCEPTABLE, "Unsupported HTTP protocol");
         return;
     } else {
         stream->net->protocol = 1;
@@ -9037,7 +9038,7 @@ static void parseResponseLine(HttpQueue *q, HttpPacket *packet)
 
     protocol = getToken(packet, NULL, TOKEN_WORD);
     if (protocol == NULL || *protocol == '\0') {
-        httpBadRequestError(stream, HTTP_ABORT | HTTP_CODE_NOT_ACCEPTABLE, "Bad response protocol");
+        httpBadRequestError(stream, HTTP_CLOSE | HTTP_CODE_NOT_ACCEPTABLE, "Bad response protocol");
         return;
     }
     protocol = supper(protocol);
@@ -9047,27 +9048,27 @@ static void parseResponseLine(HttpQueue *q, HttpPacket *packet)
             rx->remainingContent = HTTP_UNLIMITED;
         }
     } else if (strcmp(protocol, "HTTP/1.1") != 0) {
-        httpBadRequestError(stream, HTTP_ABORT | HTTP_CODE_NOT_ACCEPTABLE, "Unsupported HTTP protocol");
+        httpBadRequestError(stream, HTTP_CLOSE | HTTP_CODE_NOT_ACCEPTABLE, "Unsupported HTTP protocol");
         return;
     }
     rx->protocol = supper(protocol);
     status = getToken(packet, NULL, TOKEN_NUMBER);
     if (status == NULL || *status == '\0') {
-        httpBadRequestError(stream, HTTP_ABORT | HTTP_CODE_NOT_ACCEPTABLE, "Bad response status code");
+        httpBadRequestError(stream, HTTP_CLOSE | HTTP_CODE_NOT_ACCEPTABLE, "Bad response status code");
         return;
     }
     rx->status = atoi(status);
 
     message = getToken(packet, "\r\n", TOKEN_LINE);
     if (message == NULL || *message == '\0') {
-        httpBadRequestError(stream, HTTP_ABORT | HTTP_CODE_NOT_ACCEPTABLE, "Bad response status message");
+        httpBadRequestError(stream, HTTP_CLOSE | HTTP_CODE_NOT_ACCEPTABLE, "Bad response status message");
         return;
     }
     rx->statusMessage = sclone(message);
 
     len = slen(rx->statusMessage);
     if (len >= stream->limits->uriSize) {
-        httpLimitError(stream, HTTP_ABORT | HTTP_CODE_REQUEST_URL_TOO_LARGE,
+        httpLimitError(stream, HTTP_CLOSE | HTTP_CODE_REQUEST_URL_TOO_LARGE,
             "Bad response. Status message too long. Length %zd vs limit %d", len, stream->limits->uriSize);
         return;
     }
@@ -9093,17 +9094,17 @@ static void parseFields(HttpQueue *q, HttpPacket *packet)
 
     for (count = 0; mprGetBufLength(packet->content) > 0 && packet->content->start[0] != '\r' && !stream->error; count++) {
         if (count >= limits->headerMax) {
-            httpLimitError(stream, HTTP_ABORT | HTTP_CODE_BAD_REQUEST, "Too many headers");
+            httpLimitError(stream, HTTP_CLOSE | HTTP_CODE_BAD_REQUEST, "Too many headers");
             return;
         }
         key = getToken(packet, ":", TOKEN_HEADER_KEY);
         if (key == NULL || *key == '\0' || mprGetBufLength(packet->content) == 0) {
-            httpBadRequestError(stream, HTTP_ABORT | HTTP_CODE_BAD_REQUEST, "Bad header format");
+            httpBadRequestError(stream, HTTP_CLOSE | HTTP_CODE_BAD_REQUEST, "Bad header format");
             return;
         }
         value = getToken(packet, "\r\n", TOKEN_HEADER_VALUE);
         if (value == NULL || mprGetBufLength(packet->content) == 0 || packet->content->start[0] == '\0') {
-            httpBadRequestError(stream, HTTP_ABORT | HTTP_CODE_BAD_REQUEST, "Bad header value");
+            httpBadRequestError(stream, HTTP_CLOSE | HTTP_CODE_BAD_REQUEST, "Bad header value");
             return;
         }
         if (scaselessmatch(key, "set-cookie")) {
@@ -9116,7 +9117,7 @@ static void parseFields(HttpQueue *q, HttpPacket *packet)
         If there were no headers, there will be no trailing ...
      */
     if (mprGetBufLength(packet->content) < 2) {
-        httpBadRequestError(stream, HTTP_ABORT | HTTP_CODE_BAD_REQUEST, "Bad header format");
+        httpBadRequestError(stream, HTTP_CLOSE | HTTP_CODE_BAD_REQUEST, "Bad header format");
         return;
     }
     /*
@@ -10460,7 +10461,7 @@ static bool addHeaderToSet(HttpStream *stream, cchar *key, cchar *value)
                         sendGoAway(net->socketq, HTTP2_PROTOCOL_ERROR, "Bad request path");
                         return 0;
                     } else if (len >= limits->uriSize) {
-                        httpLimitError(stream, HTTP_ABORT | HTTP_CODE_REQUEST_URL_TOO_LARGE,
+                        httpLimitError(stream, HTTP_CLOSE | HTTP_CODE_REQUEST_URL_TOO_LARGE,
                             "Bad request. URI too long. Length %zd vs limit %d", len, limits->uriSize);
                         return 0;
                     }
@@ -16621,7 +16622,7 @@ static int processFirst(HttpStream *stream)
         stream->started = stream->http->now;
         stream->http->totalRequests++;
         if ((value = httpMonitorEvent(stream, HTTP_COUNTER_ACTIVE_REQUESTS, 1)) > net->limits->requestsPerClientMax) {
-            httpError(stream, HTTP_ABORT | HTTP_CODE_SERVICE_UNAVAILABLE,
+            httpError(stream, HTTP_CLOSE | HTTP_CODE_SERVICE_UNAVAILABLE,
                 "Request denied for IP %s. Too many concurrent requests for client, active: %d max: %d", stream->ip, (int) value, net->limits->requestsPerClientMax);
             return 0;
         }
@@ -16701,7 +16702,7 @@ static void processHeaders(HttpStream *stream)
                 }
                 rx->length = stoi(value);
                 if (rx->length < 0) {
-                    httpBadRequestError(stream, HTTP_ABORT | HTTP_CODE_BAD_REQUEST, "Bad content length");
+                    httpBadRequestError(stream, HTTP_CLOSE | HTTP_CODE_BAD_REQUEST, "Bad content length");
                     return;
                 }
                 rx->contentLength = sclone(value);
@@ -17007,7 +17008,7 @@ static int processParsed(HttpStream *stream)
                 Delay testing rxBodySize till after routing for streaming requests. This way, rxBodySize can be defined per route.
             */
             if (rx->length >= stream->limits->rxBodySize && stream->limits->rxBodySize != HTTP_UNLIMITED) {
-                httpLimitError(stream, HTTP_ABORT | HTTP_CODE_REQUEST_TOO_LARGE,
+                httpLimitError(stream, HTTP_CLOSE | HTTP_CODE_REQUEST_TOO_LARGE,
                     "Request content length %lld bytes is too big. Limit %lld", rx->length, stream->limits->rxBodySize);
             }
             if (rx->form && rx->length >= stream->limits->rxFormSize && stream->limits->rxFormSize != HTTP_UNLIMITED) {
@@ -20952,7 +20953,7 @@ static int closeTarget(HttpStream *stream, HttpRoute *route, HttpRouteOp *op)
     assert(stream);
     assert(route);
 
-    httpError(stream, HTTP_CODE_RESET | HTTP_ABORT, "Route target \"close\" is closing request");
+    httpError(stream, HTTP_CODE_RESET | HTTP_CLOSE, "Route target \"close\" is closing request");
     return HTTP_ROUTE_OK;
 }
 
@@ -26601,8 +26602,7 @@ static int writeToFile(HttpQueue *q, char *data, ssize len)
         /*
             Abort the connection as we don't want the load of receiving the entire body
          */
-        httpLimitError(stream, HTTP_ABORT | HTTP_CODE_REQUEST_TOO_LARGE, "Uploaded file exceeds maximum %lld",
-            limits->uploadSize);
+        httpLimitError(stream, HTTP_ABORT | HTTP_CODE_REQUEST_TOO_LARGE, "Uploaded file exceeds maximum %lld", limits->uploadSize);
         return MPR_ERR_CANT_WRITE;
     }
     if (len > 0) {
