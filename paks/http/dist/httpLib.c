@@ -17210,7 +17210,7 @@ static int prepErrorDoc(HttpStream *stream)
     rx = stream->rx;
     tx = stream->tx;
 
-    if (!rx->headerPacket || stream->errorDoc) {
+    if (!rx->headerPacket || rx->errorDoc) {
         return stream->state;
     }
     httpLog(stream->trace, "tx.http.errordoc", "context", "location:%s, status:%d", tx->errorDocument, tx->status);
@@ -17218,6 +17218,7 @@ static int prepErrorDoc(HttpStream *stream)
     stream->state = HTTP_STATE_COMPLETE;
     httpResetServerStream(stream);
 
+    stream->rx->errorDoc = 1;
     stream->rx->headers = rx->headers;
     stream->rx->method = rx->method;
     stream->rx->originalMethod = rx->originalMethod;
@@ -17225,7 +17226,6 @@ static int prepErrorDoc(HttpStream *stream)
     stream->rx->uri = (char*) tx->errorDocument;
     stream->tx->status = tx->status;
     stream->state = HTTP_STATE_PARSED;
-    stream->errorDoc = 1;
     return processParsed(stream);
 }
 

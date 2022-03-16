@@ -3807,7 +3807,6 @@ typedef struct HttpStream {
     bool            disconnect;             /**< Must disconnect/reset the connection - can not continue */
     bool            encoded: 1;             /**< True if the password is MD5(username:realm:password) */
     bool            error;                  /**< An error has occurred and the request cannot be completed */
-    bool            errorDoc: 1;            /**< Processing an error document */
     bool            followRedirects: 1;     /**< Follow redirects for client requests */
     bool            peerCreated: 1;         /**< Stream created by peer */
     bool            proxied: 1;             /**< Stream carried by a proxy connection */
@@ -6925,6 +6924,7 @@ typedef struct HttpRx {
     bool            autoDelete: 1;          /**< Automatically delete uploaded files */
     bool            endStream: 1;           /**< HTTP/2 end of input stream */
     bool            eof: 1;                 /**< All read data has been received by the protocol layer (http*Filter) */
+    bool            errorDoc: 1;            /**< Processing an error document */
     bool            form: 1;                /**< Using mime-type application/x-www-form-urlencoded */
     bool            ifModified: 1;          /**< If-Modified processing requested */
     bool            ifMatch: 1;             /**< If-Match processing requested */
