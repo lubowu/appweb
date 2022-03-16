@@ -50,7 +50,6 @@ typedef struct Request {
     int         retries;            /* Current retry count */
     MprEvent    *timeout;           /* Timeout event */
     ThreadData  *threadData;
-    bool        written;
     int         upload;             /* Upload using multipart mime */
     HttpUri     *uri;               /* Parsed target URL */
     char        *url;               /* Request target URL */
@@ -996,7 +995,6 @@ static void startRequest(Request *req)
         return;
     }
     req->redirect = 0;
-    req->written = 0;
 
     prepHeaders(req);
     if (setContentLength(stream) < 0) {
@@ -1010,6 +1008,15 @@ static void startRequest(Request *req)
         }
         return;
     }
+
+    if (!app->hasData) {
+        httpFinalizeOutput(stream);
+    } else {
+        if (writeBody(stream) < 0) {
+            httpError(stream, HTTP_CODE_INTERNAL_SERVER_ERROR, "Cannot write body data. %s", httpGetError(stream));
+        }
+    }
+
     httpEnableNetEvents(net);
     httpServiceNetQueues(net, 0);
 }
@@ -1060,16 +1067,6 @@ static void checkRequestState(HttpStream *stream)
         break;
 
     case HTTP_STATE_CONNECTED:
-        if (!app->hasData) {
-            httpFinalizeOutput(stream);
-        } else {
-            if (!req->written) {
-                if (writeBody(stream) < 0) {
-                    httpError(stream, HTTP_CODE_INTERNAL_SERVER_ERROR, "Cannot write body data. %s", httpGetError(stream));
-                }
-                req->written = 1;
-            }
-        }
         break;
 
     case HTTP_STATE_FIRST:

@@ -8805,6 +8805,7 @@ static HttpStream *findStream1(HttpQueue *q);
 static char *getToken(HttpPacket *packet, cchar *delim, int validation);
 static bool gotHeaders(HttpQueue *q, HttpPacket *packet);
 static void incomingHttp1(HttpQueue *q, HttpPacket *packet);
+static void incomingHttp1Service(HttpQueue *q);
 static void outgoingHttp1(HttpQueue *q, HttpPacket *packet);
 static void outgoingHttp1Service(HttpQueue *q);
 static void parseFields(HttpQueue *q, HttpPacket *packet);
@@ -8827,28 +8828,34 @@ PUBLIC int httpOpenHttp1Filter()
     HTTP->http1Filter = filter;
     filter->incoming = incomingHttp1;
     filter->outgoing = outgoingHttp1;
+    filter->incomingService = incomingHttp1Service;
     filter->outgoingService = outgoingHttp1Service;
     return 0;
+}
+
+
+static void incomingHttp1(HttpQueue *q, HttpPacket *packet)
+{
+    // There will typically be no packets on the queue, so this will be fast.
+    httpJoinPacketForService(q, packet, HTTP_SCHEDULE_QUEUE);
 }
 
 
 /*
     The queue is the net->inputq == netHttp-rx
  */
-static void incomingHttp1(HttpQueue *q, HttpPacket *packet)
+static void incomingHttp1Service(HttpQueue *q)
 {
     HttpStream  *stream;
+    HttpPacket  *packet;
 
     stream = findStream1(q);
-
-    // There will typically be no packets on the queue, so this will be fast.
-    httpJoinPacketForService(q, packet, HTTP_DELAY_SERVICE);
 
     for (packet = httpGetPacket(q); packet && !stream->error; packet = httpGetPacket(q)) {
         if (stream->state < HTTP_STATE_PARSED) {
             if (!parseHeaders1(q, packet)) {
                 httpPutBackPacket(q, packet);
-                break;
+                return;
             }
             if (httpGetPacketLength(packet) == 0) {
                 packet = 0;
@@ -8858,7 +8865,7 @@ static void incomingHttp1(HttpQueue *q, HttpPacket *packet)
             if (!httpWillQueueAcceptPacket(q, stream->inputq, packet)) {
                 httpPutBackPacket(q, packet);
                 //  Re-enabled in tailFilter
-                break;
+                return;
             }
             httpPutPacket(stream->inputq, packet);
         }
@@ -9434,6 +9441,7 @@ static void sendReset(HttpQueue *q, HttpStream *stream, int status, cchar *fmt, 
 static void sendSettings(HttpQueue *q);
 static void sendSettingsFrame(HttpQueue *q);
 static void sendWindowFrame(HttpQueue *q, int streamID, ssize size);
+static void setLastPacket(HttpQueue *q, HttpPacket *packet);
 static bool validateHeader(cchar *key, cchar *value);
 
 /*
@@ -9675,6 +9683,7 @@ static void outgoingHttp2Service(HttpQueue *q)
     for (packet = httpGetPacket(q); packet && !net->error; packet = httpGetPacket(q)) {
         net->lastActivity = net->http->now;
 
+        setLastPacket(q, packet);
         if (net->outputq->window <= 0 || net->socketq->count >= net->socketq->max) {
             /*
                 The output queue has depleted the HTTP/2 transmit window. Flow control and wait for
@@ -9759,6 +9768,26 @@ static void outgoingHttp2Service(HttpQueue *q)
         restartSuspendedStreams(net);
     }
     closeNetworkWhenDone(q);
+}
+
+
+/*
+    Determine if this is the last packet in the stream. If packet is END, or if packet is data and the next packet is END,
+    or packet is header and it is followed by NOT a header.
+ */
+static void setLastPacket(HttpQueue *q, HttpPacket *packet)
+{
+    HttpNet     *net;
+    HttpPacket  *next;
+    int         last;
+
+    net = q->net;
+    next = q->first;
+    last = (
+        (packet->flags & HTTP_PACKET_HEADER && !(!next || next->flags & HTTP_PACKET_HEADER)) ||
+        (packet->flags & HTTP_PACKET_DATA && next && next->flags & HTTP_PACKET_END) ||
+        (packet->flags & HTTP_PACKET_END));
+    packet->last = last;
 }
 
 
@@ -14619,7 +14648,6 @@ PUBLIC void httpIOEvent(HttpNet *net, MprEvent *event)
     if (net->destroyed) {
         return;
     }
-    net->active = 1;
     net->lastActivity = net->http->now;
 
     if (event->mask & MPR_WRITABLE && (net->socketq->count + net->ioCount) > 0) {
@@ -14632,9 +14660,28 @@ PUBLIC void httpIOEvent(HttpNet *net, MprEvent *event)
             httpSetNetEof(net);
         }
     }
+
     /*
-        Process packet read above. This will propagate the packet through configured queues for the net.
-     */
+        Process the packet. This will propagate the packet through configured queues for the net.
+    */
+    httpServiceNet(net);
+
+    if (net->callback) {
+        (net->callback)(net, HTTP_NET_IO);
+    }
+    if (mprNeedYield()) {
+        mprYield(0);
+    }
+}
+
+
+/*
+    Service the primary network. This will propagate the packet through configured queues for the net.
+    Also service associated networks (with same dispatcher) incase packets transferred between networks (proxy).
+*/
+PUBLIC void httpServiceNet(HttpNet *net)
+{
+    net->active = 1;
     httpServiceNetQueues(net, HTTP_BLOCK);
 
     if (net->error || net->eof || (net->sentGoaway && !net->socketq->first)) {
@@ -14646,10 +14693,6 @@ PUBLIC void httpIOEvent(HttpNet *net, MprEvent *event)
         httpEnableNetEvents(net);
     }
     net->active = 0;
-
-    if (mprNeedYield()) {
-        mprYield(0);
-    }
 }
 
 
@@ -15328,13 +15371,8 @@ PUBLIC HttpPacket *httpGetPacket(HttpQueue *q)
             q->first = packet->next;
             packet->next = 0;
             q->count -= httpGetPacketLength(packet);
-            assert(q->count >= 0);
             if (packet == q->last) {
                 q->last = 0;
-                assert(q->first == 0);
-            }
-            if (q->first == 0) {
-                assert(q->last == 0);
             }
         }
         break;
@@ -17925,8 +17963,10 @@ PUBLIC void httpServiceQueues(HttpStream *stream, int flags)
 PUBLIC void httpServiceNetQueues(HttpNet *net, int flags)
 {
     HttpQueue   *q, *lastq;
+    int         pingPong = 0;
 
     lastq = net->serviceq->schedulePrev;
+    pingPong = 0;
 
     while ((q = httpGetNextQueueForService(net->serviceq)) != NULL) {
         /*
@@ -17942,6 +17982,10 @@ PUBLIC void httpServiceNetQueues(HttpNet *net, int flags)
             Stop servicing if all queues that were scheduled at the start of the call have been serviced.
         */
         if ((flags & HTTP_CURRENT) && q == lastq) {
+            break;
+        }
+        if (pingPong++ > 500) {
+            //  Safety: Can get degenerate cases were badly written filters interact and recursively flow control each other.
             break;
         }
     }
@@ -18003,6 +18047,16 @@ PUBLIC bool httpWillNextQueueAcceptPacket(HttpQueue *q, HttpPacket *packet)
     return httpWillQueueAcceptPacket(q, nextQ, packet);
 }
 
+
+PUBLIC bool httpIsNextQueueSuspended(HttpQueue *q)
+{
+    HttpQueue   *nextQ;
+
+    if ((nextQ = httpFindNextQueue(q)) != 0 && nextQ->flags & HTTP_QUEUE_SUSPENDED) {
+        return 1;
+    }
+    return 0;
+}
 
 /*
     Return true if the next queue will accept a certain amount of data. If not, then disable the queue's service procedure.
@@ -18222,16 +18276,19 @@ static void outgoingRangeService(HttpQueue *q)
         }
     }
     for (packet = httpGetPacket(q); packet; packet = httpGetPacket(q)) {
-        if (tx->outputRanges) {
+        if (tx->outputRanges && !(packet->flags & HTTP_PACKET_PROCESSED)) {
             if (packet->flags & HTTP_PACKET_DATA) {
                 if ((packet = selectBytes(q, packet)) == 0) {
                     continue;
                 }
             } else if (packet->flags & HTTP_PACKET_END) {
                 if (tx->rangeBoundary) {
+                    //  Insert a final range packet. This is an additional packet.
                     httpPutPacketToNext(q, createFinalRangePacket(stream));
                 }
             }
+            //  Set processed incase the downstream queue won't accept. 
+            packet->flags |= HTTP_PACKET_PROCESSED;
         }
         if (!httpWillNextQueueAcceptPacket(q, packet)) {
             httpPutBackPacket(q, packet);
@@ -23942,13 +23999,22 @@ static void incomingTailService(HttpQueue *q)
 {
     HttpPacket  *packet;
 
+    if (httpIsNextQueueSuspended(q)) {
+        //  To prevent ping-pong suspensions, don't call httpGetPacket which resumes upstream queues if not required.
+        httpSuspendQueue(q);
+        return;
+    }
     for (packet = httpGetPacket(q); packet; packet = httpGetPacket(q)) {
-        if (!willQueueAcceptPacket(q, packet)) {
+        if (!httpWillNextQueueAcceptPacket(q, packet)) {
             httpPutBackPacket(q, packet);
             return;
         }
         httpPutPacketToNext(q, packet);
     }
+    /*
+        Resume the Http* filter if suspended and we are not suspended.
+        Special case flow control because tail service is a one-to-many and auto flow control does not handle this
+    */
     if (httpIsQueueSuspended(q->net->inputq)) {
         httpResumeQueue(q->net->inputq, 1);
     }
@@ -24020,25 +24086,11 @@ static bool willQueueAcceptPacket(HttpQueue *q, HttpPacket *packet)
     HttpNet     *net;
     HttpStream  *stream;
     HttpQueue   *nextQ;
-    HttpPacket  *next, *tail;
+    HttpPacket  *tail;
     ssize       room, size;
-    int         last;
 
     net = q->net;
     stream = q->stream;
-
-    /*
-        Determine if this is the last packet in the HTTP/2 stream.
-        If packet is END, or if packet is data and the next packet is END, or packet is header and it is
-        followed by NOT a header.
-
-        Should be in HTTP/2. But must not flow control headers.
-     */
-    next = q->first;
-    last = (
-        (packet->flags & HTTP_PACKET_HEADER && !(!next || next->flags & HTTP_PACKET_HEADER)) ||
-        (packet->flags & HTTP_PACKET_DATA && next && next->flags & HTTP_PACKET_END) ||
-        (packet->flags & HTTP_PACKET_END));
 
     /*
         Get the maximum the output stream can absorb that is less than the downstream
@@ -24052,12 +24104,10 @@ static bool willQueueAcceptPacket(HttpQueue *q, HttpPacket *packet)
     size = httpGetPacketLength(packet);
     if (size <= room) {
         //  Packet fits
-        packet->last = last;
         return 1;
     }
     if (net->protocol < 2 && (size - room) < HTTP_QUEUE_ALLOW) {
         //  Packet almost fits. Allow for HTTP/1. HTTP/2 we must strictly observe the flow control window.
-        packet->last = last;
         return 1;
     }
     if (room > 0) {
@@ -24067,9 +24117,6 @@ static bool willQueueAcceptPacket(HttpQueue *q, HttpPacket *packet)
         tail = httpResizePacket(q, packet, room);
         size = httpGetPacketLength(packet);
         if (size > 0) {
-            if (tail == 0) {
-                packet->last = last;
-            }
             return 1;
         }
     }
@@ -24952,9 +24999,9 @@ PUBLIC char *httpStatsReport(int flags)
             rx = stream->rx;
             tx = stream->tx;
             mprPutToBuf(buf,
-                "State %d (%d), error %d, eof %d, finalized input %d, output %d, connector %d, seqno %lld, mask %x, uri %s\n",
+                "State %d (%d), error %d, eof %d, finalized input %d, output %d, connector %d, seqno %lld, net mask %x, net error %d, net eof %d, destroyed %d, uri %s\n",
                 stream->state, stream->h2State, stream->error, rx->eof, tx->finalizedInput, tx->finalizedOutput,
-                tx->finalizedConnector, stream->seqno, net->eventMask, rx->uri);
+                tx->finalizedConnector, stream->seqno, net->eventMask, net->error, (int) net->eof, net->destroyed, rx->uri);
             traceQueues(stream, buf);
         }
     }
@@ -25331,7 +25378,6 @@ PUBLIC void httpFinalizeOutput(HttpStream *stream)
     }
     if (!tx->putEndPacket) {
         httpPutPacket(stream->writeq, httpCreateEndPacket());
-        httpScheduleQueue(stream->writeq);
     }
     checkFinalized(stream);
 }

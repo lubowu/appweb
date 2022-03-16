@@ -1918,6 +1918,7 @@ typedef struct HttpRange {
 #define HTTP_PACKET_DATA        0x4               /**< Packet contains actual content data */
 #define HTTP_PACKET_END         0x8               /**< End of stream packet */
 #define HTTP_PACKET_SOLO        0x10              /**< Don't join this packet */
+#define HTTP_PACKET_PROCESSED   0x20              /**< Packet data has already been processed */
 
 /**
     Callback procedure to fill a packet with data
@@ -2535,6 +2536,9 @@ PUBLIC bool httpVerifyQueue(HttpQueue *q);
     @stability Stable
  */
 PUBLIC bool httpWillNextQueueAcceptPacket(HttpQueue *q, HttpPacket *packet);
+
+//  Internal
+PUBLIC bool httpIsNextQueueSuspended(HttpQueue *q);
 
 /**
     Test if the next queue is full
@@ -3216,6 +3220,7 @@ typedef void (*HttpIOCallback)(struct HttpNet *net, MprEvent *event);
 #define HTTP_NET_EOF        3                   /**< The network peer has disconnected */
 #define HTTP_NET_ERROR      4                   /**< The network has an unrecoverable error */
 #define HTTP_NET_DESTROY    5                   /**< The network is about to be destroyed */
+#define HTTP_NET_IO         6                   /**< The network has an IO event */
 
 /**
     Control object for the network connection. A network connection may multiplex many HttpStream objects that represent
@@ -3430,6 +3435,9 @@ PUBLIC bool httpGetAsync(HttpNet *net);
     @stability Internal
  */
 PUBLIC void httpIOEvent(struct HttpNet *net, MprEvent *event);
+
+//  Internal
+PUBLIC void httpServiceNet(struct HttpNet *net);
 
 /**
     Read input from a HTTP connected socket

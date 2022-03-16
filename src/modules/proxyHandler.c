@@ -130,12 +130,13 @@ static int proxyCloseConfigDirective(MaState *state, cchar *key, cchar *value);
 static int proxyConfigDirective(MaState *state, cchar *key, cchar *value);
 static int proxyConnectDirective(MaState *state, cchar *key, cchar *value);
 static void proxyFrontNotifier(HttpStream *stream, int event, int arg);
+static void proxyIO(HttpNet *net, int event);
 static int proxyLogDirective(MaState *state, cchar *key, cchar *value);
 static int proxyOpenRequest(HttpQueue *q);
 static int proxyTraceDirective(MaState *state, cchar *key, cchar *value);
 static HttpStream *proxyCreateStream(ProxyRequest *req);
 static void proxyClientIncoming(HttpQueue *q, HttpPacket *packet);
-static void proxyClientOutgoing(HttpQueue *q);
+static void proxyClientOutgoingService(HttpQueue *q);
 static void proxyBackNotifier(HttpStream *stream, int event, int arg);
 static void proxyDeath(ProxyApp *app, MprSignal *sp);
 static void proxyStartRequest(HttpQueue *q);
@@ -176,7 +177,7 @@ PUBLIC int httpProxyInit(Http *http, MprModule *module)
     handler->open = proxyOpenRequest;
     handler->start = proxyStartRequest;
     handler->incoming = proxyClientIncoming;
-    handler->outgoingService = proxyClientOutgoing;
+    handler->outgoingService = proxyClientOutgoingService;
 
 #if ME_DEBUG
     mprAddRoot(mprAddSignalHandler(ME_SIGINFO, proxyInfo, 0, 0, MPR_SIGNAL_AFTER));
@@ -217,6 +218,8 @@ static int proxyOpenRequest(HttpQueue *q)
 
     /*
         Get or allocate a network connection to the proxy
+        Use the streams dispatcher so that events on the proxy network are serialized with respect to the client network.
+        This means we don't need locking to serialize access from the client network events to the proxy network and vice versa.
      */
     if ((proxyNet = getProxyNetwork(app, stream->dispatcher)) == 0) {
         httpError(stream, HTTP_CODE_SERVICE_UNAVAILABLE, "Cannot allocate network for proxy %s", stream->rx->route->pattern);
@@ -234,9 +237,9 @@ static int proxyOpenRequest(HttpQueue *q)
     }
     q->queueData = q->pair->queueData = req;
 
-    httpEnableNetEvents(proxyNet);
     transferClientHeaders(stream, req->proxyStream);
     httpSetStreamNotifier(stream, proxyFrontNotifier);
+    httpEnableNetEvents(proxyNet);
     return 0;
 }
 
@@ -404,6 +407,7 @@ static void proxyFrontNotifier(HttpStream *stream, int event, int arg)
 {
     HttpNet         *net;
     ProxyRequest    *req;
+    HttpStream      *proxyStream;
 
     net = stream->net;
     assert(net->endpoint);
@@ -411,26 +415,30 @@ static void proxyFrontNotifier(HttpStream *stream, int event, int arg)
     if ((req = stream->writeq->queueData) == 0) {
         return;
     }
-    if (req->proxyStream == NULL || req->proxyStream->destroyed) {
+    proxyStream = req->proxyStream;
+    if (proxyStream == NULL || proxyStream->destroyed) {
         return;
     }
     switch (event) {
     case HTTP_EVENT_READABLE:
     case HTTP_EVENT_WRITABLE:
         break;
+
     case HTTP_EVENT_ERROR:
-        if (!stream->tx->finalizedInput || req->proxyStream->tx->finalizedOutput) {
+        if (!stream->tx->finalizedInput || proxyStream->tx->finalizedOutput) {
             if (stream->upgraded) {
-                httpError(req->proxyStream, HTTP_CLOSE, "Client closed connection");
+                httpError(proxyStream, HTTP_CLOSE, "Client closed connection");
             } else {
-                httpError(req->proxyStream, HTTP_CLOSE, "Client closed connection before request sent to proxy");
+                httpError(proxyStream, HTTP_CLOSE, "Client closed connection before request sent to proxy");
             }
-            req->proxyNet->dispatcher = 0;
-            httpServiceNetQueues(req->proxyStream->net, 0);
+            //  The stream and its dispatcher will be destroyed so switch to the MPR dispatcher
+            proxyStream->net->dispatcher = 0;
         }
         break;
+
     case HTTP_EVENT_DESTROY:
         break;
+
     case HTTP_EVENT_DONE:
         break;
 
@@ -441,19 +449,20 @@ static void proxyFrontNotifier(HttpStream *stream, int event, int arg)
         case HTTP_STATE_FIRST:
         case HTTP_STATE_PARSED:
             break;
+
         case HTTP_STATE_CONTENT:
             if (stream->rx->upgrade) {
                 //  Cause the headers to be pushed out
-                httpPutPacket(req->proxyStream->writeq, httpCreateDataPacket(0));
-                httpServiceNetQueues(req->proxyStream->net, 0);
+                httpPutPacket(proxyStream->writeq, httpCreateDataPacket(0));
             }
             break;
+
         case HTTP_STATE_READY:
             if (!stream->rx->upgrade) {
-                httpFinalizeOutput(req->proxyStream);
-                httpServiceNetQueues(req->proxyStream->net, 0);
+                httpFinalizeOutput(proxyStream);
             }
             break;
+
         case HTTP_STATE_RUNNING:
             break;
         case HTTP_STATE_FINALIZED:
@@ -493,13 +502,11 @@ static void proxyBackNotifier(HttpStream *proxyStream, int event, int arg)
 
     case HTTP_EVENT_DONE:
         httpLog(proxyStream->trace, "tx.proxy", "result", "msg:Request complete");
-        httpSetStreamNotifier(req->stream, NULL);
         httpDestroyStream(proxyStream);
 
         if (net->error || proxyStream->upgraded || (net->protocol < 2 && proxyStream->keepAliveCount <= 0)) {
             httpDestroyNet(net);
         } else {
-            net->dispatcher = NULL;
             mprPushItem(req->app->networks, net);
         }
         break;
@@ -537,24 +544,52 @@ static void proxyNetCallback(HttpNet *net, int event)
     ProxyApp    *app;
 
     app = net->data;
-
-    if (event == HTTP_NET_ERROR || event == HTTP_NET_EOF) {
-        if (app) {
-            lock(app->proxy);
-            mprRemoveItem(app->networks, net);
-            httpDestroyNet(net);
-        }
+    if (!app) {
+        return;
+    }
+    switch (event) {
+    case HTTP_NET_ERROR:
+    case HTTP_NET_EOF:
+        lock(app->proxy);
+        mprRemoveItem(app->networks, net);
+        httpDestroyNet(net);
         unlock(app->proxy);
+        break;
+
+    case HTTP_NET_IO:
+        proxyIO(net, event);
+        break;
     }
 }
 
 
 /*
-    Incoming data from the client destined for proxy.
+    When we get an IO event on a network, service the associated other network on the same proxy request.
+*/
+static void proxyIO(HttpNet *net, int event)
+{
+    HttpNet     *n;
+    int         more, next;
+
+    do {
+        more = 0;
+        for (ITERATE_ITEMS(HTTP->networks, n, next)) {
+            if (n->dispatcher && n->dispatcher == net->dispatcher && n->serviceq->scheduleNext != n->serviceq && !n->destroyed) {
+                httpServiceNet(n);
+                more = 1;
+            }
+        }
+    } while (more);
+}
+
+
+/*
+    Incoming data from the client destined for proxy
  */
 static void proxyClientIncoming(HttpQueue *q, HttpPacket *packet)
 {
     HttpStream      *stream;
+    HttpStream      *proxyStream;
     ProxyRequest    *req;
 
     assert(q);
@@ -564,42 +599,48 @@ static void proxyClientIncoming(HttpQueue *q, HttpPacket *packet)
     if ((req = q->queueData) == 0) {
         return;
     }
-    packet->stream = req->proxyStream;
+    proxyStream = req->proxyStream;
+    packet->stream = proxyStream;
 
     if (packet->flags & HTTP_PACKET_END) {
         httpFinalizeInput(stream);
         if (stream->net->protocol < 0 && stream->rx->remainingContent > 0) {
             httpError(stream, HTTP_CODE_BAD_REQUEST, "Client supplied insufficient body data");
         } else {
-            httpFinalizeOutput(req->proxyStream);
+            httpFinalizeOutput(proxyStream);
         }
     } else {
-        httpPutPacket(req->proxyStream->writeq, packet);
+        httpPutPacket(proxyStream->writeq, packet);
     }
-    httpServiceNetQueues(req->proxyStream->net, 0);
 }
 
 
-static void proxyClientOutgoing(HttpQueue *q)
+/*
+    Send data back to the client (browser)
+ */
+static void proxyClientOutgoingService(HttpQueue *q)
 {
     HttpPacket      *packet;
     HttpStream      *stream;
+    HttpStream      *proxyStream;
     ProxyRequest    *req;
 
     req = q->queueData;
     stream = q->stream;
+    proxyStream = req->proxyStream;
 
     for (packet = httpGetPacket(q); packet; packet = httpGetPacket(q)) {
         if (!httpWillNextQueueAcceptPacket(q, packet)) {
             httpPutBackPacket(q, packet);
-            break;
+            return;
         }
         httpPutPacketToNext(q, packet);
     }
-    if (httpIsQueueSuspended(req->proxyStream->readq)) {
-        httpResumeQueue(req->proxyStream->readq, 1);
-        //  This should enable a write event which will run queues
-        httpEnableNetEvents(req->proxyNet);
+    /*
+        Manual flow control to the proxy stream. Back endable the proxy stream to resume transferring data to this queue
+    */
+    if (httpIsQueueSuspended(proxyStream->readq)) {
+        httpResumeQueue(proxyStream->readq, HTTP_SCHEDULE_QUEUE);
     }
 }
 
@@ -618,8 +659,14 @@ static void proxyStreamIncoming(HttpQueue *q)
     if (req == 0) {
         return;
     }
-    //  Stream for the client
+    //  Client stream
     stream = req->stream;
+
+    //  If client write queue (browser) is suspended -- cannot transfer any packets here
+    if (httpIsQueueSuspended(stream->writeq)) {
+        httpSuspendQueue(q);
+        return;
+    }
 
     for (packet = httpGetPacket(q); packet; packet = httpGetPacket(q)) {
         packet->stream = stream;
@@ -629,10 +676,10 @@ static void proxyStreamIncoming(HttpQueue *q)
         if (stream->tx->finalizedOutput || stream->state < HTTP_STATE_PARSED || stream->state >= HTTP_STATE_FINALIZED) {
             continue;
         }
+        //  Test if the client stream will accept this packet, if not, suspend (q)
         if (!httpWillQueueAcceptPacket(q, stream->writeq, packet)) {
             httpPutBackPacket(q, packet);
-            //  Break rather than return so that net events can be enabled incase writeq socket is full
-            break;
+            return;
         }
         if (packet->flags & HTTP_PACKET_END) {
             httpFinalizeOutput(stream);
@@ -640,11 +687,6 @@ static void proxyStreamIncoming(HttpQueue *q)
             httpPutPacket(stream->writeq, packet);
         }
     }
-    /*
-        Must run net events for output data and when finalized
-    */
-    httpScheduleQueue(stream->writeq);
-    httpEnableNetEvents(stream->net);
 }
 
 
@@ -704,7 +746,6 @@ static void transferProxyHeaders(HttpStream *proxyStream, HttpStream *stream)
         httpSetHeaderString(stream, "Connection", "Upgrade");
         //  Force headers to be sent to client
         httpPutPacketToNext(stream->writeq, httpCreateDataPacket(0));
-        httpServiceNetQueues(stream->net, 0);
     }
 }
 
@@ -893,6 +934,7 @@ static HttpNet *getProxyNetwork(ProxyApp *app, MprDispatcher *dispatcher)
     net->sharedDispatcher = 1;
     net->limits = httpCloneLimits(proxy->limits);
     net->data = app;
+
     httpSetNetCallback(net, proxyNetCallback);
 
     timeout = mprGetTicks() + PROXY_CONNECT_TIMEOUT;
@@ -1087,6 +1129,7 @@ static HttpStream *proxyCreateStream(ProxyRequest *req)
         return 0;
     }
     httpSetStreamNotifier(proxyStream, proxyBackNotifier);
+    httpSetNetCallback(stream->net, proxyIO);
     httpCreatePipeline(proxyStream);
     proxyStream->readq->service = proxyStreamIncoming;
 
