@@ -15228,7 +15228,9 @@ static void closeStreams(HttpNet *net)
                     httpError(stream, 0, "Peer closed connection before receiving full response");
                 }
             }
-            httpSetState(stream, HTTP_STATE_COMPLETE);
+            if (stream->state < HTTP_STATE_COMPLETE) {
+                httpSetState(stream, HTTP_STATE_COMPLETE);
+            }
         }
     }
 }
