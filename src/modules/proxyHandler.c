@@ -125,6 +125,7 @@ static void manageProxy(Proxy *proxy, int flags);
 static void manageProxyApp(ProxyApp *app, int flags);
 static void manageProxyRequest(ProxyRequest *proxyRequest, int flags);
 static void proxyAbortRequest(ProxyRequest *req);
+static void proxyDestroyNet(HttpNet *net);
 static void proxyCloseRequest(HttpQueue *q);
 static int proxyCloseConfigDirective(MaState *state, cchar *key, cchar *value);
 static int proxyConfigDirective(MaState *state, cchar *key, cchar *value);
@@ -517,9 +518,6 @@ static void proxyBackNotifier(HttpStream *proxyStream, int event, int arg)
     case HTTP_EVENT_ERROR:
 #if UNUSED
         proxyAbortRequest(req);
-        for (ITERATE_ITEMS(req->app->requests, rq, next)) {
-            mprCreateLocalEvent(req->stream->dispatcher, "proxy-reap", 0, proxyAbortRequest, req, 0);
-        }
 #endif
         break;
 
@@ -814,6 +812,7 @@ static ProxyApp *allocProxyApp(Proxy *proxy)
 }
 
 
+//  Should be called with proxy locked
 static void closeAppNetworks(ProxyApp *app)
 {
     HttpNet     *net;
@@ -843,8 +842,8 @@ static ProxyApp *getProxyApp(Proxy *proxy, HttpStream *stream)
     MprTicks    timeout;
     int         bestCount, count, next;
 
-    app = NULL;
     timeout = mprGetTicks() +  PROXY_WAIT_TIMEOUT;
+    app = NULL;
 
     lock(proxy);
     /*
@@ -1065,10 +1064,18 @@ static void proxyDeath(ProxyApp *app, MprSignal *sp)
             mprCreateLocalEvent(req->stream->dispatcher, "proxy-reap", 0, proxyAbortRequest, req, 0);
         }
         for (ITERATE_ITEMS(app->networks, net, next)) {
-            httpDestroyNet(net);
+            mprCreateLocalEvent(net->dispatcher, "net-reap", 0, proxyDestroyNet, net, 0);
         }
     }
     unlock(proxy);
+}
+
+
+static void proxyDestroyNet(HttpNet *net)
+{
+    if (net && !net->destroyed) {
+        httpDestroyNet(net);
+    }
 }
 
 
@@ -1081,9 +1088,10 @@ static void proxyAbortRequest(ProxyRequest *req)
 
     stream = req->stream;
     if (stream->state <= HTTP_STATE_BEGIN || stream->rx->route == NULL) {
-        /* Request already complete and stream has been recycled (prepared for next request) */
+        // Request already complete and stream has been recycled (prepared for next request)
         return;
     }
+    //  FUTURE - could retry requests
     httpError(stream, HTTP_ABORT | HTTP_CODE_INTERNAL_SERVER_ERROR, "Proxy comms error");
 }
 
