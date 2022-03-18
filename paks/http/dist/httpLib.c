@@ -2853,9 +2853,11 @@ static void incomingChunk(HttpQueue *q, HttpPacket *packet)
         return;
     }
 
-    httpJoinPacketForService(q, packet, HTTP_DELAY_SERVICE);
+    //  Aggregate all packets
+    httpPutForService(q, packet, HTTP_DELAY_SERVICE);
+    httpJoinPackets(q, -1);
 
-    for (packet = httpGetPacket(q); packet && !stream->error && !rx->eof; packet = httpGetPacket(q)) {
+    for (packet = httpGetPacket(q); packet && !rx->eof; packet = httpGetPacket(q)) {
         while (packet && !stream->error && !rx->eof) {
             switch (rx->chunkState) {
             case HTTP_CHUNK_UNCHUNKED:
@@ -2867,15 +2869,18 @@ static void incomingChunk(HttpQueue *q, HttpPacket *packet)
                 nbytes = min(rx->remainingContent, len);
                 rx->remainingContent -= nbytes;
                 rx->bytesRead += nbytes;
-                if (nbytes < len && (tail = httpSplitPacket(packet, nbytes)) != 0) {
+                if (nbytes < len) {
+                    tail = httpSplitPacket(packet, nbytes);
                     httpPutPacketToNext(q, packet);
                     packet = tail;
+
                 } else if (len > 0) {
+                    //  Pure data
                     httpPutPacketToNext(q, packet);
                     packet = 0;
                 }
                 if (rx->remainingContent <= 0) {
-                    /* End of chunk - prep for the next chunk */
+                    // End of chunk - prep for the next chunk
                     rx->remainingContent = ME_BUFSIZE;
                     rx->chunkState = HTTP_CHUNK_START;
                 }
@@ -2889,15 +2894,22 @@ static void incomingChunk(HttpQueue *q, HttpPacket *packet)
                     Validate:  "\r\nSIZE.*\r\n"
                  */
                 buf = packet->content;
-                if (mprGetBufLength(buf) < 5) {
-                    httpJoinPacketForService(q, packet, HTTP_DELAY_SERVICE);
+                len = mprGetBufLength(buf);
+                if (len == 0) {
+                    return;
+                } else if (len < 5) {
+                    httpPutBackPacket(q, packet);
                     return;
                 }
                 start = mprGetBufStart(buf);
                 bad = (start[0] != '\r' || start[1] != '\n');
+
+                //  Find trailing '\n'
                 for (cp = &start[2]; cp < buf->end && *cp != '\n'; cp++) {}
-                if (cp >= buf->end || (*cp != '\n' && (cp - start) < 80)) {
-                    httpJoinPacketForService(q, packet, HTTP_DELAY_SERVICE);
+
+                //  If not found, put back packet to wait for more data.
+                if (cp >= buf->end) {
+                    httpPutBackPacket(q, packet);
                     return;
                 }
                 bad += (cp[-1] != '\r' || cp[0] != '\n');
@@ -2954,7 +2966,7 @@ static void incomingChunk(HttpQueue *q, HttpPacket *packet)
 #endif
     }
     if (packet) {
-        /* Transfer END packet */
+        // Transfer END packet
         httpPutPacketToNext(q, packet);
     }
 }
@@ -2990,11 +3002,13 @@ static void outgoingChunkService(HttpQueue *q)
         httpTraceQueues(stream);
         return;
     }
-    for (packet = httpGetPacket(q); packet; packet = httpGetPacket(q)) {
+    for (packet = httpGetPacket(q); packet && !q->net->error; packet = httpGetPacket(q)) {
         if (packet->flags & HTTP_PACKET_DATA) {
             httpPutBackPacket(q, packet);
             httpJoinPackets(q, tx->chunkSize);
             packet = httpGetPacket(q);
+
+            //  FUTURE - may not be required
             if (httpGetPacketLength(packet) > tx->chunkSize) {
                 httpResizePacket(q, packet, tx->chunkSize);
             }
@@ -3007,7 +3021,7 @@ static void outgoingChunkService(HttpQueue *q)
             setChunkPrefix(q, packet);
 
         } else if (packet->flags & HTTP_PACKET_END) {
-            /* Insert a packet for the final chunk */
+            // Insert a packet for the final chunk
             finalChunk = httpCreateDataPacket(0);
             setChunkPrefix(q, finalChunk);
             httpPutPacketToNext(q, finalChunk);
@@ -3375,7 +3389,6 @@ PUBLIC ssize httpReadBlock(HttpStream *stream, char *buf, ssize size, MprTicks t
         nbytes += len;
         if (mprGetBufLength(content) == 0) {
             httpGetPacket(q);
-
         }
         if (flags & HTTP_NON_BLOCK) {
             break;
@@ -8837,8 +8850,7 @@ PUBLIC int httpOpenHttp1Filter()
 
 static void incomingHttp1(HttpQueue *q, HttpPacket *packet)
 {
-    // There will typically be no packets on the queue, so this will be fast.
-    httpJoinPacketForService(q, packet, HTTP_SCHEDULE_QUEUE);
+    httpPutForService(q, packet, HTTP_SCHEDULE_QUEUE);
 }
 
 
@@ -8852,24 +8864,25 @@ static void incomingHttp1Service(HttpQueue *q)
 
     stream = findStream1(q);
 
-    for (packet = httpGetPacket(q); packet && !stream->error; packet = httpGetPacket(q)) {
+    if (stream->state < HTTP_STATE_PARSED) {
+        httpJoinPackets(q, -1);
+    }
+    for (packet = httpGetPacket(q); packet; packet = httpGetPacket(q)) {
         if (stream->state < HTTP_STATE_PARSED) {
             if (!parseHeaders1(q, packet)) {
                 httpPutBackPacket(q, packet);
                 return;
             }
             if (httpGetPacketLength(packet) == 0) {
-                packet = 0;
+                continue;
             }
         }
-        if (packet) {
-            if (!httpWillQueueAcceptPacket(q, stream->inputq, packet)) {
-                httpPutBackPacket(q, packet);
-                //  Re-enabled in tailFilter
-                return;
-            }
-            httpPutPacket(stream->inputq, packet);
+        if (!httpWillQueueAcceptPacket(q, stream->inputq, packet)) {
+            httpPutBackPacket(q, packet);
+            //  Re-enabled in tailFilter
+            return;
         }
+        httpPutPacket(stream->inputq, packet);
     }
     if (stream->error && packet && packet->flags & HTTP_PACKET_END) {
         httpFinalizeInput(stream);
@@ -9336,7 +9349,7 @@ static HttpStream *findStream1(HttpQueue *q)
 
     if (!q->stream) {
         if ((stream = httpCreateStream(q->net, 1)) == 0) {
-            /* Memory error - centrally reported */
+            //  Memory error - centrally reported
             return 0;
         }
         q->stream = stream;
@@ -14625,12 +14638,10 @@ PUBLIC bool httpReadIO(HttpNet *net)
                 }
             }
         }
-        if (net->protocol < 0) {
-            if (strstr(packet->content->start, "\r\n\r\n") != NULL) {
-                if (sleuthProtocol(net, packet) < 0) {
-                    net->error = 1;
-                    return 0;
-                }
+        if (net->protocol < 0 && strstr(packet->content->start, "\r\n") != NULL) {
+            if (sleuthProtocol(net, packet) < 0) {
+                net->error = 1;
+                return 0;
             }
         }
         httpPutPacket(net->inputq, packet);
@@ -15060,6 +15071,8 @@ static HttpPacket *getPacket(HttpNet *net, ssize *lenp)
     MprBuf      *buf;
     ssize       size;
 
+    packet = 0;
+
 #if ME_HTTP_HTTP2
     if (net->protocol < 2) {
         size = net->inputq ? net->inputq->packetSize : ME_PACKET_SIZE;
@@ -15069,17 +15082,24 @@ static HttpPacket *getPacket(HttpNet *net, ssize *lenp)
 #else
     size = net->inputq ? net->inputq->packetSize : ME_PACKET_SIZE;
 #endif
-    if (!net->inputq || (packet = httpGetPacket(net->inputq)) == NULL) {
-        if ((packet = httpCreateDataPacket(size)) == 0) {
+    /*
+        Must use queued buffer and append if we haven't yet sleuthed the protocol
+    */
+    if (net->protocol < 0 && net->inputq) {
+        //  This will remove the packet from the queue. Should not be any other packets on the queue.
+        packet = httpGetPacket(net->inputq);
+        assert(net->inputq->first == NULL);
+    }
+    if (packet) {
+        buf = packet->content;
+        if (mprGetBufSpace(buf) < size && mprGrowBuf(buf, size) < 0) {
+            //  Already reported
             return 0;
         }
+    } else {
+        packet = httpCreateDataPacket(size);
     }
-    buf = packet->content;
-    mprResetBufIfEmpty(buf);
-    if (mprGetBufSpace(buf) < size && mprGrowBuf(buf, size) < 0) {
-        return 0;
-    }
-    *lenp = mprGetBufSpace(buf);
+    *lenp = mprGetBufSpace(packet->content);
     assert(*lenp > 0);
     return packet;
 }
@@ -15615,7 +15635,7 @@ PUBLIC void httpPutBackPacket(HttpQueue *q, HttpPacket *packet)
 
 
 /*
-    Put a packet on the service queue.
+    Append a packet on the end of the service queue.
  */
 PUBLIC void httpPutForService(HttpQueue *q, HttpPacket *packet, bool serviceQ)
 {
@@ -15641,9 +15661,10 @@ PUBLIC void httpPutForService(HttpQueue *q, HttpPacket *packet, bool serviceQ)
 
 
 /*
-    Resize and possibly split a packet to be smaller than "size". Put back the 2nd portion of the split packet
-    on the queue. Ensure that the packet is not larger than "size" if it is greater than zero. If size < 0, then
-    use the default packet size. Return the tail packet.
+    Resize a packet if required and possibly split a packet to be smaller than "size".
+    Put back the 2nd portion of the split packet on the queue.
+    Ensure that the packet is not larger than "size" if it is greater than zero.
+    If size < 0, then use the default packet size. Return the tail packet. May return null with the packet unaltered.
  */
 PUBLIC HttpPacket *httpResizePacket(HttpQueue *q, HttpPacket *packet, ssize size)
 {
@@ -15651,12 +15672,11 @@ PUBLIC HttpPacket *httpResizePacket(HttpQueue *q, HttpPacket *packet, ssize size
     ssize       len;
 
     if (size <= 0) {
-        size = MAXINT;
+        size = ME_PACKET_SIZE;
     }
     if (packet->esize > size) {
-        if ((tail = httpSplitPacket(packet, size)) == 0) {
-            return 0;
-        }
+        tail = httpSplitPacket(packet, size);
+
     } else {
         /*
             Calculate the size that will fit downstream
@@ -15669,11 +15689,11 @@ PUBLIC HttpPacket *httpResizePacket(HttpQueue *q, HttpPacket *packet, ssize size
         if (size == 0 || size == len) {
             return 0;
         }
-        if ((tail = httpSplitPacket(packet, size)) == 0) {
-            return 0;
-        }
+        tail = httpSplitPacket(packet, size);
     }
-    httpPutBackPacket(q, tail);
+    if (tail) {
+        httpPutBackPacket(q, tail);
+    }
     return tail;
 }
 
@@ -17381,7 +17401,9 @@ static void parseUri(HttpStream *stream)
 
     rx = stream->rx;
     if (httpSetUri(stream, rx->uri) < 0) {
-        httpBadRequestError(stream, HTTP_CLOSE | HTTP_CODE_BAD_REQUEST, "Bad URL");
+        if (!stream->error) {
+            httpBadRequestError(stream, HTTP_CLOSE | HTTP_CODE_BAD_REQUEST, "Bad URL");
+        }
         rx->parsedUri = httpCreateUri("", 0);
 
     } else {
@@ -22174,7 +22196,7 @@ PUBLIC cchar *httpGetCookie(HttpStream *stream, cchar *name)
     end = &buf[slen(buf)];
     value = 0;
 
-    for (tok = buf; tok < end; ) {
+    for (tok = buf; tok && tok < end; ) {
          cookie = stok(tok, ";", &tok);
          key = stok(cookie, "=", &value);
          if (smatch(key, name)) {
@@ -24089,7 +24111,6 @@ static bool willQueueAcceptPacket(HttpQueue *q, HttpPacket *packet)
     HttpNet     *net;
     HttpStream  *stream;
     HttpQueue   *nextQ;
-    HttpPacket  *tail;
     ssize       room, size;
 
     net = q->net;
@@ -24117,7 +24138,7 @@ static bool willQueueAcceptPacket(HttpQueue *q, HttpPacket *packet)
         /*
             Resize the packet to fit downstream. This will putback the tail if required.
          */
-        tail = httpResizePacket(q, packet, room);
+        httpResizePacket(q, packet, room);
         size = httpGetPacketLength(packet);
         if (size > 0) {
             return 1;
