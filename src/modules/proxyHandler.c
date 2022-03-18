@@ -515,8 +515,8 @@ static void proxyBackNotifier(HttpStream *proxyStream, int event, int arg)
         break;
 
     case HTTP_EVENT_ERROR:
-        proxyAbortRequest(req);
 #if UNUSED
+        proxyAbortRequest(req);
         for (ITERATE_ITEMS(req->app->requests, rq, next)) {
             mprCreateLocalEvent(req->stream->dispatcher, "proxy-reap", 0, proxyAbortRequest, req, 0);
         }
@@ -913,7 +913,7 @@ static HttpNet *getProxyNetwork(ProxyApp *app, MprDispatcher *dispatcher)
     HttpNet     *net;
     Proxy       *proxy;
     MprTicks    timeout;
-    int         connected, backoff, protocol;
+    int         connected, backoff, level, protocol;
 
     proxy = app->proxy;
 
@@ -940,6 +940,10 @@ static HttpNet *getProxyNetwork(ProxyApp *app, MprDispatcher *dispatcher)
     net->sharedDispatcher = 1;
     net->limits = httpCloneLimits(proxy->limits);
     net->data = app;
+
+    net->trace = app->trace;
+    level = PTOI(mprLookupKey(net->trace->events, "packet"));
+    net->tracing = (net->trace->level >= level) ? 1 : 0;
 
     httpSetNetCallback(net, proxyNetCallback);
 
