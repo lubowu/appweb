@@ -433,6 +433,7 @@ static void readFromCgi(Cgi *cgi, int channel)
     tx = stream->tx;
     q = cgi->readq;
     writeq = stream->writeq;
+
     assert(stream->sock);
     assert(stream->state > HTTP_STATE_BEGIN);
 
@@ -460,6 +461,9 @@ static void readFromCgi(Cgi *cgi, int channel)
 
         } else if (nbytes == 0) {
             mprCloseCmdFd(cmd, channel);
+            if (channel == MPR_CMD_STDOUT) {
+                httpFinalizeOutput(stream);
+            }
             break;
 
         } else {
@@ -483,9 +487,6 @@ static void readFromCgi(Cgi *cgi, int channel)
         if (!tx->finalizedOutput && httpGetPacketLength(packet) > 0) {
             /* Put the data to the CGI readq, then cgiToBrowserService will take care of it */
             httpPutPacket(q, packet);
-        }
-        if (nbytes == 0 && channel == MPR_CMD_STDOUT) {
-            httpFinalizeOutput(stream);
         }
     }
 }
