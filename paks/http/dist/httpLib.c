@@ -18298,6 +18298,7 @@ static void outgoingRangeService(HttpQueue *q)
          */
         if ((rc = fixRangeLength(stream, q)) <= 0) {
             if (!q->servicing) {
+                httpTransferPackets(q, q->nextQ);
                 httpRemoveQueue(q);
             }
             tx->outputRanges = 0;
@@ -18318,7 +18319,7 @@ static void outgoingRangeService(HttpQueue *q)
                     httpPutPacketToNext(q, createFinalRangePacket(stream));
                 }
             }
-            //  Set processed incase the downstream queue won't accept. 
+            //  Set processed incase the downstream queue won't accept.
             packet->flags |= HTTP_PACKET_PROCESSED;
         }
         if (!httpWillNextQueueAcceptPacket(q, packet)) {
@@ -18360,7 +18361,7 @@ static HttpPacket *selectBytes(HttpQueue *q, HttpPacket *packet)
             return 0;
 
         } else if (tx->rangePos < range->start) {
-            /*  Packet starts before range so skip some data, but some packet data is in range */
+            //  Packet starts before range so skip some data, but some packet data is in range
             gap = (range->start - tx->rangePos);
             tx->rangePos += gap;
             if (gap < length) {
@@ -18369,7 +18370,7 @@ static HttpPacket *selectBytes(HttpQueue *q, HttpPacket *packet)
             if (tx->rangePos >= range->end) {
                 range = tx->currentRange = range->next;
             }
-            /* Keep going and examine next range */
+            // Keep going and examine next range
 
         } else {
             /* In range */
@@ -18379,7 +18380,7 @@ static HttpPacket *selectBytes(HttpQueue *q, HttpPacket *packet)
             count = (ssize) min(span, q->nextQ->packetSize);
             assert(count > 0);
             if (length > count) {
-                /* Split packet if packet extends past range */
+                // Split packet if packet extends past range
                 httpPutBackPacket(q, httpSplitPacket(packet, count));
             }
             if (tx->rangeBoundary) {
@@ -18501,7 +18502,7 @@ static int fixRangeLength(HttpStream *stream, HttpQueue *q)
                  */
                 return 0;
             }
-            /* select last -range-end bytes */
+            // select last -range-end bytes
             range->start = length - range->end + 1;
             range->end = length;
         }
@@ -22185,7 +22186,7 @@ PUBLIC cchar *httpGetCookies(HttpStream *stream)
 PUBLIC cchar *httpGetCookie(HttpStream *stream, cchar *name)
 {
     HttpRx  *rx;
-    char    *buf, *cookie, *end, *key, *tok, *value;
+    char    *buf, *cookie, *end, *key, *tok, *value, *vtok;
 
     assert(stream);
     rx = stream->rx;
@@ -22200,10 +22201,10 @@ PUBLIC cchar *httpGetCookie(HttpStream *stream, cchar *name)
 
     for (tok = buf; tok && tok < end; ) {
          cookie = stok(tok, ";", &tok);
-         key = stok(cookie, "=", &value);
+         key = stok(cookie, "=", &vtok);
          if (smatch(key, name)) {
              // Remove leading spaces first, then double quotes. Spaces inside double quotes preserved.
-             value = sclone(strim(strim(value, " ", MPR_TRIM_BOTH), "\"", MPR_TRIM_BOTH));
+             value = sclone(strim(strim(vtok, " ", MPR_TRIM_BOTH), "\"", MPR_TRIM_BOTH));
              break;
          }
     }
