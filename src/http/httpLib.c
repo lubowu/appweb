@@ -22185,7 +22185,7 @@ PUBLIC cchar *httpGetCookies(HttpStream *stream)
 PUBLIC cchar *httpGetCookie(HttpStream *stream, cchar *name)
 {
     HttpRx  *rx;
-    char    *buf, *cookie, *end, *key, *tok, *value;
+    char    *buf, *cookie, *end, *key, *tok, *value, *vtok;
 
     assert(stream);
     rx = stream->rx;
@@ -22200,10 +22200,10 @@ PUBLIC cchar *httpGetCookie(HttpStream *stream, cchar *name)
 
     for (tok = buf; tok && tok < end; ) {
          cookie = stok(tok, ";", &tok);
-         key = stok(cookie, "=", &value);
+         key = stok(cookie, "=", &vtok);
          if (smatch(key, name)) {
              // Remove leading spaces first, then double quotes. Spaces inside double quotes preserved.
-             value = sclone(strim(strim(value, " ", MPR_TRIM_BOTH), "\"", MPR_TRIM_BOTH));
+             value = sclone(strim(strim(vtok, " ", MPR_TRIM_BOTH), "\"", MPR_TRIM_BOTH));
              break;
          }
     }
