@@ -17378,7 +17378,7 @@ static bool parseRange(HttpStream *stream, char *value)
         }
         next = range->next;
         if (range->start < 0 && next) {
-            /* This range goes to the end, so cannot have another range afterwards */
+            // This range goes to the end, so cannot have another range afterwards 
             return 0;
         }
         if (next) {
@@ -26030,7 +26030,7 @@ PUBLIC ssize httpWriteBlock(HttpQueue *q, cchar *buf, ssize len, int flags)
         if (stream->state >= HTTP_STATE_FINALIZED || stream->net->error) {
             return MPR_ERR_CANT_WRITE;
         }
-        if (q->last && (q->last != q->first) && (q->last->flags & HTTP_PACKET_DATA) && mprGetBufSpace(q->last->content) > 0) {
+        if (q->last && (q->last->flags & HTTP_PACKET_DATA) && mprGetBufSpace(q->last->content) > 0) {
             packet = q->last;
         } else {
             packetSize = (tx->chunkSize > 0) ? tx->chunkSize : q->packetSize;

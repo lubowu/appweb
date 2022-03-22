@@ -4756,6 +4756,7 @@ PUBLIC int espOpen(MprModule *module)
     handler->open = openEsp;
     handler->close = closeEsp;
     handler->start = startEsp;
+    handler->outgoingService = httpDefaultService;
 
     /*
         Using the standard 'incoming' callback that simply transfers input to the queue head
