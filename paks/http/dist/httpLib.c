@@ -14876,8 +14876,6 @@ static void addPacketForNet(HttpQueue *q, HttpPacket *packet)
 
     } else if (packet->esize > 0) {
         stream = packet->stream;
-        assert(!stream->error);
-        assert(!net->stream->error);
         net->ioFile = stream->tx->file;
         net->ioCount += packet->esize;
     }
@@ -24002,6 +24000,8 @@ static void incomingTail(HttpQueue *q, HttpPacket *packet)
     rx = stream->rx;
 
     count = stream->readq->count + httpGetPacketLength(packet);
+    stream->lastActivity = stream->http->now;
+    
     if (rx->upload && count >= stream->limits->uploadSize && stream->limits->uploadSize != HTTP_UNLIMITED) {
         httpLimitError(stream, HTTP_CLOSE | HTTP_CODE_REQUEST_TOO_LARGE,
             "Request upload of %d bytes is too big. Limit %lld", (int) count, stream->limits->uploadSize);
