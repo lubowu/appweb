@@ -14876,8 +14876,6 @@ static void addPacketForNet(HttpQueue *q, HttpPacket *packet)
 
     } else if (packet->esize > 0) {
         stream = packet->stream;
-        assert(!stream->error);
-        assert(!net->stream->error);
         net->ioFile = stream->tx->file;
         net->ioCount += packet->esize;
     }
