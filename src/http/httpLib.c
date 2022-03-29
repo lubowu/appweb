@@ -8902,6 +8902,8 @@ static void outgoingHttp1Service(HttpQueue *q)
     HttpPacket  *packet;
 
     stream = q->stream;
+    stream->lastActivity = stream->net->lastActivity = stream->http->now;
+
     for (packet = httpGetPacket(q); packet; packet = httpGetPacket(q)) {
         if (!httpWillQueueAcceptPacket(q, q->net->socketq, packet)) {
             httpPutBackPacket(q, packet);
@@ -14865,6 +14867,8 @@ static void addPacketForNet(HttpQueue *q, HttpPacket *packet)
     HttpStream  *stream;
 
     net = q->net;
+    stream = packet->stream;
+
     assert(q->count >= 0);
     assert(net->ioIndex < (ME_MAX_IOVEC - 2));
 
@@ -14875,10 +14879,10 @@ static void addPacketForNet(HttpQueue *q, HttpPacket *packet)
         addToNetVector(net, mprGetBufStart(packet->content), mprGetBufLength(packet->content));
 
     } else if (packet->esize > 0) {
-        stream = packet->stream;
         net->ioFile = stream->tx->file;
         net->ioCount += packet->esize;
     }
+    stream->lastActivity = net->http->now;
 }
 
 
@@ -24001,7 +24005,7 @@ static void incomingTail(HttpQueue *q, HttpPacket *packet)
 
     count = stream->readq->count + httpGetPacketLength(packet);
     stream->lastActivity = stream->http->now;
-    
+
     if (rx->upload && count >= stream->limits->uploadSize && stream->limits->uploadSize != HTTP_UNLIMITED) {
         httpLimitError(stream, HTTP_CLOSE | HTTP_CODE_REQUEST_TOO_LARGE,
             "Request upload of %d bytes is too big. Limit %lld", (int) count, stream->limits->uploadSize);
@@ -24025,6 +24029,7 @@ static void incomingTail(HttpQueue *q, HttpPacket *packet)
 
 static void incomingTailService(HttpQueue *q)
 {
+    HttpStream  *stream;
     HttpPacket  *packet;
 
     if (httpIsNextQueueSuspended(q)) {
@@ -24032,6 +24037,9 @@ static void incomingTailService(HttpQueue *q)
         httpSuspendQueue(q);
         return;
     }
+    stream = q->stream;
+    stream->lastActivity = stream->net->lastActivity = stream->http->now;
+
     for (packet = httpGetPacket(q); packet; packet = httpGetPacket(q)) {
         if (!httpWillNextQueueAcceptPacket(q, packet)) {
             httpPutBackPacket(q, packet);
@@ -24092,6 +24100,10 @@ static void outgoingTail(HttpQueue *q, HttpPacket *packet)
 static void outgoingTailService(HttpQueue *q)
 {
     HttpPacket  *packet;
+    HttpStream  *stream;
+
+    stream = q->stream;
+    stream->lastActivity = stream->net->lastActivity = stream->http->now;
 
     for (packet = httpGetPacket(q); packet; packet = httpGetPacket(q)) {
         if (!willQueueAcceptPacket(q, packet)) {
