@@ -14882,7 +14882,9 @@ static void addPacketForNet(HttpQueue *q, HttpPacket *packet)
         net->ioFile = stream->tx->file;
         net->ioCount += packet->esize;
     }
-    stream->lastActivity = net->http->now;
+    if (stream) {
+        stream->lastActivity = net->http->now;
+    }
 }
 
 
@@ -14912,6 +14914,7 @@ static void freeNetPackets(HttpQueue *q, ssize bytes)
     assert(bytes >= 0);
 
     while ((packet = q->first) != 0) {
+        stream = packet->stream;
         if (packet->flags & HTTP_PACKET_END) {
             if (packet->prefix) {
                 len = mprGetBufLength(packet->prefix);
@@ -14924,7 +14927,7 @@ static void freeNetPackets(HttpQueue *q, ssize bytes)
                     packet->prefix = 0;
                 }
             }
-            if ((stream = packet->stream) != 0) {
+            if (stream) {
                 httpFinalizeConnector(stream);
             }
         } else if (bytes > 0) {
@@ -14966,6 +14969,9 @@ static void freeNetPackets(HttpQueue *q, ssize bytes)
             // Packet still has data to be written
             break;
         }
+    }
+    if (stream) {
+        stream->lastActivity = net->http->now;
     }
 }
 
