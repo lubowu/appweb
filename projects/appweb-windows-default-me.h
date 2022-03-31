@@ -25,7 +25,7 @@
     #define ME_COMPAT 1
 #endif
 #ifndef ME_COMPATIBLE
-    #define ME_COMPATIBLE "8.2"
+    #define ME_COMPATIBLE "8.3"
 #endif
 #ifndef ME_COMPILER_FORTIFY
     #define ME_COMPILER_FORTIFY 1
@@ -193,7 +193,7 @@
     #define ME_TUNE "size"
 #endif
 #ifndef ME_VERSION
-    #define ME_VERSION "8.2.6"
+    #define ME_VERSION "8.3.0"
 #endif
 #ifndef ME_WATCHDOG_NAME
     #define ME_WATCHDOG_NAME "appman"
@@ -297,13 +297,13 @@
     #define ME_MAJOR_VERSION 8
 #endif
 #ifndef ME_MINOR_VERSION
-    #define ME_MINOR_VERSION 2
+    #define ME_MINOR_VERSION 3
 #endif
 #ifndef ME_PATCH_VERSION
-    #define ME_PATCH_VERSION 6
+    #define ME_PATCH_VERSION 0
 #endif
 #ifndef ME_VNUM
-    #define ME_VNUM 800020006
+    #define ME_VNUM 800030000
 #endif
 
 /* Components */
